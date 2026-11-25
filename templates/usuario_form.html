@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block titulo %}Usuario{% endblock %}
+{% block migas %}<a href="{{ url_for('admin') }}">Administrador</a> / <a href="{{ url_for('usuarios') }}">Usuarios</a> /{% endblock %}
+{% block h1 %}{{ 'Modificar ' ~ u.usuario if u else 'Nuevo usuario' }}{% endblock %}
+{% block contenido %}
+<form method="post" class="card form" style="max-width:640px" autocomplete="off">{{ csrf_campo() }}
+  <div class="grid g2">
+    <div class="campo"><label>Nombre *</label><input type="text" name="nombre" id="n" required value="{{ u.nombre if u else '' }}"></div>
+    <div class="campo"><label>Apellido *</label><input type="text" name="apellido" id="a" required value="{{ u.apellido if u else '' }}"></div>
+  </div>
+  <div class="campo"><label>Nombre de usuario {{ '(se asignó al crearlo y no cambia)' if u else '(inicial del nombre + apellido)' }}</label><input type="text" id="prev" disabled value="{{ u.usuario if u else '' }}"></div>
+  <div class="grid g3">
+    <div class="campo"><label>Contraseña {{ '(dejar vacío para no cambiar)' if u else '*' }}</label><input type="password" name="contrasena" {% if not u %}required{% endif %}></div>
+    <div class="campo"><label>PIN de seguridad (4 dígitos) *</label><input type="text" name="pin" maxlength="4" pattern="\d{4}" required value="{{ u.pin if u else '' }}" inputmode="numeric"></div>
+    <div class="campo"><label>Tipo de usuario</label><select name="rol" {% if u and u.usuario=='Admin' %}disabled{% endif %}>
+      <option {% if u and u.rol=='Usuario' %}selected{% endif %}>Usuario</option><option {% if u and u.rol=='Administrador' %}selected{% endif %}>Administrador</option></select></div>
+  </div>
+  <div class="barra der"><a class="btn sec" href="{{ url_for('usuarios') }}">Cancelar</a><button class="btn">Guardar</button></div>
+</form>
+{% endblock %}
+{% block scripts %}{% if not u %}<script>
+const sa = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'');
+const f = () => { const n = sa(document.getElementById('n').value.trim()), a = sa(document.getElementById('a').value.trim()).replace(/\s+/g,'');
+  document.getElementById('prev').value = (n.slice(0,1) + a).toUpperCase(); };
+document.getElementById('n').oninput = f; document.getElementById('a').oninput = f;
+</script>{% endif %}{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block titulo %}Temas{% endblock %}
+{% block migas %}<a href="{{ url_for('admin') }}">Administrador</a> / <a href="{{ url_for('configuracion') }}">Configuración</a> /{% endblock %}
+{% block h1 %}Temas{% endblock %}
+{% block contenido %}
+{% set muestras = {'clasico':['rgb(20,50,75)','rgb(240,140,65)','rgb(250,250,250)'],'oceano':['rgb(0,100,170)','rgb(10,165,190)','rgb(250,250,250)'],
+                   'atardecer':['rgb(20,50,75)','rgb(235,95,40)','rgb(255,250,230)'],'grafito':['rgb(0,0,0)','rgb(25,145,180)','rgb(250,250,250)']} %}
+<form method="post" class="links">{{ csrf_campo() }}
+  {% for k, t in temas.items() %}
+  <button class="link-card" name="tema" value="{{ k }}" style="text-align:left;cursor:pointer;font-family:inherit;{% if cfg.tema==k %}border:2px solid var(--acento){% endif %}">
+    <div style="display:flex;gap:6px;margin-bottom:10px">{% for c in muestras[k] %}<span style="width:34px;height:34px;border-radius:6px;background:{{ c }};border:1px solid var(--linea)"></span>{% endfor %}</div>
+    <b>{{ t }}</b><span>{{ 'Tema actual' if cfg.tema==k else 'Aplicar' }}</span>
+  </button>
+  {% endfor %}
+</form>
+{% endblock %}

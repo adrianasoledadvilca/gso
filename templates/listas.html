@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block titulo %}Listas{% endblock %}
+{% block h1 %}Listas{% endblock %}
+{% block contenido %}
+<p class="muted">Valores que se usan en los desplegables del sistema.</p>
+<div class="links">
+  {% for k, t in listas.items() %}<a class="link-card" href="{{ url_for('lista_abm', nombre=k) }}"><b>ABM Lista {{ t }}</b><span>{{ conteo[k] }} valores</span></a>{% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+{% block titulo %}Estadísticas{% endblock %}
+{% block h1 %}Estadísticas{% endblock %}
+{% block acciones %}<button class="btn sec" onclick="print()">Imprimir / PDF</button>{% endblock %}
+{% block contenido %}
+<div class="periodo">
+  <div class="campo"><label>Período</label>
+    <div class="seg" id="modo"><button type="button" data-m="mensual">Mensual</button><button type="button" data-m="anual" class="on">Anual</button></div></div>
+  <div class="campo" style="min-width:110px"><label>Año</label><select id="anio">{% for a in anios %}<option>{{ a }}</option>{% endfor %}</select></div>
+  <div class="campo" style="min-width:150px" id="campoMes"><label>Mes</label><select id="mes">{% for m in meses %}<option value="{{ loop.index }}" {% if loop.index==hoy.month %}selected{% endif %}>{{ m }}</option>{% endfor %}</select></div>
+  <div class="campo"><label>&nbsp;</label><div class="seg flechas"><button type="button" id="prev" title="Período anterior" aria-label="Período anterior">‹</button><button type="button" id="next" title="Período siguiente" aria-label="Período siguiente">›</button></div></div>
+  <div class="periodo-info"><div class="muted small">Mostrando</div><div class="periodo-tit" id="etiqueta">—</div><div class="muted small" id="compara"></div></div>
+  <div class="campo"><label>&nbsp;</label><a class="btn sec" id="xls" href="#">Excel</a></div>
+</div>
+<div class="solo-print"><h2 id="etiquetaPrint"></h2></div>
+
+<div class="tabs no-print" id="tabs">
+  <button data-t="res" class="on">Resumen</button><button data-t="exp">Expedientes</button><button data-t="instr">Instrumental</button><button data-t="ins">Insumos</button>
+  <button data-t="esp">Especialidad</button><button data-t="el">Por elemento</button>
+</div>
+
+<div id="cont">
+<!-- RESUMEN -->
+<section class="panel on" id="p-res">
+  <div class="kpis6" id="k-res"></div>
+  <div class="grid seccion" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)">
+    <div class="card"><div class="card-tit"><h2>Valor entregado por mes</h2><span class="muted small">Entregas y préstamos · año elegido vs. anterior</span></div><div class="chart-box"><canvas id="cResLinea"></canvas></div></div>
+    <div class="card"><div class="card-tit"><h2>Salidas por tipo</h2><span class="muted small">Unidades en el período</span></div><ul class="barras-kv" id="l-tipo"></ul></div>
+  </div>
+  <div class="grid seccion" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)">
+    <div class="card"><div class="card-tit"><h2>Valor entregado por región</h2><span class="muted small">En el período</span></div><div class="chart-box" style="height:250px"><canvas id="cResReg"></canvas></div></div>
+    <div class="card"><div class="card-tit"><h2>Depósito</h2><span class="muted small">Situación y ajustes</span></div><ul class="lista-kv" id="l-dep"></ul></div>
+  </div>
+
+  <!-- ESTADÍSTICA DESCRIPTIVA -->
+  <div class="card seccion" id="desc">
+    <div class="card-tit"><div><h2>Estadística descriptiva</h2><span class="muted small">Medidas de tendencia central, dispersión, posición y forma</span></div>
+      <div class="barra"><label class="small muted" for="dVar">Variable</label><select id="dVar" style="width:auto;min-width:320px"></select></div></div>
+    <p class="small muted" id="dAlc" style="margin:-6px 0 14px"></p>
+    <div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);align-items:start">
+      <div id="dMed"></div>
+      <div>
+        <div class="card-tit" style="margin-bottom:8px"><h3 style="margin:0">Histograma</h3><span class="muted small" id="dHistInfo"></span></div>
+        <div class="chart-box" style="height:260px"><canvas id="cDesHist"></canvas></div>
+        <div class="leyenda-desc"><span><i class="lin media"></i>Media</span><span><i class="lin mediana"></i>Mediana</span></div>
+        <h3 style="margin:18px 0 6px">Diagrama de caja</h3>
+        <div id="dBox"></div>
+        <h3 style="margin:20px 0 8px">Interpretación</h3><ul class="interp" id="dInt"></ul>
+      </div>
+    </div>
+    <div class="seccion"><h3>Tabla de frecuencias</h3><div class="tabla-wrap"><table class="t" id="dFrec"></table></div></div>
+  </div>
+</section>
+
+<!-- EXPEDIENTES -->
+<section class="panel" id="p-exp">
+  <div class="mini-kpis" id="k-exp"></div>
+  <div class="grid g2 seccion" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)">
+    <div class="card"><h2>Expedientes ingresados por mes <span class="muted small" id="anioExp"></span></h2><div class="chart-box"><canvas id="cExpMes"></canvas></div></div>
+    <div class="card"><h2>Estado de los expedientes</h2><div class="chart-box"><canvas id="cExpEstado"></canvas></div></div>
+  </div>
+</section>
+
+<!-- INSTRUMENTAL -->
+<section class="panel" id="p-instr">
+  <div class="mini-kpis" id="k-instr"></div>
+  <div class="grid g3 seccion" id="k-venc-instr"></div>
+  <div class="grid g2 seccion">
+    <div class="card"><h2>Entregados a regiones</h2><div class="chart-box"><canvas id="cInstrReg"></canvas></div></div>
+    <div class="card"><h2>Salidas por mes <span class="muted small anioLbl"></span></h2><div class="chart-box"><canvas id="cInstrMes"></canvas></div></div>
+  </div>
+  <div class="card seccion"><h2>Más entregados en el período</h2><div class="chart-box" style="height:260px"><canvas id="cInstrTop"></canvas></div></div>
+</section>
+
+<!-- INSUMOS -->
+<section class="panel" id="p-ins">
+  <div class="mini-kpis" id="k-ins"></div>
+  <div class="grid g3 seccion" id="k-venc"></div>
+  <div class="grid g2 seccion">
+    <div class="card"><h2>Entregados a regiones</h2><div class="chart-box"><canvas id="cInsReg"></canvas></div></div>
+    <div class="card"><h2>Salidas por mes <span class="muted small anioLbl"></span></h2><div class="chart-box"><canvas id="cInsMes"></canvas></div></div>
+  </div>
+  <div class="card seccion"><h2>Más entregados en el período</h2><div class="chart-box" style="height:260px"><canvas id="cInsTop"></canvas></div></div>
+</section>
+
+<!-- ESPECIALIDAD -->
+<section class="panel" id="p-esp">
+  <div class="grid g2">
+    <div class="card"><h2>Valor aproximado en stock por especialidad</h2><p class="small muted" style="margin-top:-6px">Existencias actuales × precio unitario</p><div class="chart-box alto"><canvas id="cEspStock"></canvas></div></div>
+    <div class="card"><h2>Valor entregado por especialidad</h2><p class="small muted" style="margin-top:-6px">Entregas y préstamos en el período</p><div class="chart-box alto"><canvas id="cEspEnt"></canvas></div></div>
+  </div>
+  <div class="card seccion"><h2>Detalle</h2><div class="tabla-wrap"><table class="t" id="tEsp"></table></div></div>
+</section>
+
+<!-- POR ELEMENTO -->
+<section class="panel" id="p-el">
+  <div class="card" style="margin-bottom:16px">
+    <div class="filtros" style="margin:0">
+      <div class="campo ancho"><label>Elemento</label>
+        <select id="elemento">
+          <option value="todos">Todos los elementos</option><option value="Insumo">Todos los insumos</option><option value="Instrumental">Todo el instrumental</option>
+          {% for g_ in ['Insumo', 'Instrumental'] %}<optgroup label="{{ g_ }}">{% for e in elementos if e.grupo == g_ %}<option value="{{ e.id }}">{{ e.descripcion }} ({{ e.especialidad }})</option>{% endfor %}</optgroup>{% endfor %}
+        </select></div>
+    </div>
+  </div>
+  <div class="mini-kpis" id="k-el"></div>
+  <div class="grid g2 seccion">
+    <div class="card"><h2>Total estimado en pesos</h2><div class="chart-box"><canvas id="cElValor"></canvas></div></div>
+    <div class="card"><h2>Detalle</h2><div class="tabla-wrap"><table class="t" id="tEl"></table></div></div>
+  </div>
+</section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
+<script>
+const $ = s => document.querySelector(s), C = GSO.c;
+const est = { modo: 'anual', tab: 'res', datos: null };
+const MESES = {{ meses|tojson }};
+const RZ = [['Entrega', C[0]], ['Préstamo', C[2]], ['Roto', C[1]], ['Perdido', C[3]], ['Vencido', C[4]]];
+const ejeY = (moneda) => ({ beginAtZero: true, grid: { color: 'rgba(20,50,75,.07)' }, border: { display: false },
+  ticks: { precision: 0, callback: v => moneda ? GSO.corto(v) : GSO.n(v) } });
+const ejeX = { grid: { display: false }, border: { color: 'rgba(20,50,75,.2)' } };
+const barra = (label, data, color, extra = {}) => ({ label, data, backgroundColor: color, borderRadius: 4, borderSkipped: 'start', maxBarThickness: 38, ...extra });
+
+// Variación contra el período anterior. inv = subir es malo (bajas, pérdidas).
+function delta(now, prev, inv){
+  if (prev === undefined || prev === null) return '';
+  if (!prev && !now) return '<span class="delta neutro">sin movimientos</span>';
+  if (!prev) return '<span class="delta neutro">sin datos previos</span>';
+  const p = (now - prev) / prev * 100, sube = p > 0.05, baja = p < -0.05;
+  const bueno = inv ? baja : sube, malo = inv ? sube : baja;
+  return `<span class="delta ${bueno ? 'bien' : malo ? 'mal' : 'neutro'}">${sube ? '▲' : baja ? '▼' : '='} ${Math.abs(p).toFixed(1).replace('.', ',')}%</span>`;
+}
+function mini(id, items){
+  $(id).innerHTML = items.map(([etq, val, sub, color, now, prev, inv]) =>
+    `<div class="mini" title="${etq}"><div class="etq">${etq}</div><div class="val" ${color ? `style="color:${color}"` : ''}>${val}</div>` +
+    `<div class="sub">${delta(now, prev, inv)}${sub ? ` <span>${sub}</span>` : ''}</div></div>`).join('');
+}
+// En modo mensual se resalta el mes elegido en los gráficos anuales
+const resaltar = (color) => est.modo === 'mensual' ? MESES.map((_, i) => i + 1 == $('#mes').value ? color : color + '40') : color;
+
+async function cargar(){
+  const q = new URLSearchParams({ modo: est.modo, anio: $('#anio').value, mes: $('#mes').value, elemento: $('#elemento').value });
+  $('#cont').classList.add('cargando');
+  const r = await fetch('{{ url_for("api_estadisticas") }}?' + q);
+  est.datos = await r.json();
+  $('#cont').classList.remove('cargando');
+  $('#etiqueta').textContent = est.datos.periodo;
+  $('#compara').textContent = 'Comparado con ' + est.datos.resumen.etiqueta_anterior;
+  $('#xls').href = '{{ url_for("estadisticas_excel") }}?' + q;
+  $('#etiquetaPrint').textContent = 'Estadísticas — ' + est.datos.periodo;
+  document.querySelectorAll('.anioLbl').forEach(x => x.textContent = '· ' + $('#anio').value);
+  pintar();
+}
+
+function pintar(){
+  const d = est.datos; if (!d) return;
+  const t = est.tab;
+  if (t === 'res') {
+    const R = d.resumen, a = R.actual, p = R.anterior, ant = R.etiqueta_anterior;
+    $('#k-res').innerHTML = [
+      ['Valor entregado', GSO.corto(a.entregado_valor), GSO.pesos(a.entregado_valor), a.entregado_valor, p.entregado_valor, false, true],
+      ['Unidades entregadas', GSO.n(a.entregado_cant), 'entregas y préstamos', a.entregado_cant, p.entregado_cant],
+      ['Monto comprado', GSO.corto(a.comprado), GSO.n(a.expedientes) + ' expedientes', a.comprado, p.comprado],
+      ['Bajas', GSO.n(a.bajas_cant) + ' u.', 'rotos, perdidos y vencidos · ' + GSO.corto(a.bajas_valor), a.bajas_cant, p.bajas_cant, true],
+      ['Actas emitidas', GSO.n(a.actas), 'entregas y bajas', a.actas, p.actas],
+      ['Ajustes de inventario', (a.ajuste_neto > 0 ? '+' : '') + GSO.n(a.ajuste_neto) + ' u.', `+${GSO.n(a.ajuste_sobrante)} sobrantes · −${GSO.n(a.ajuste_faltante)} faltantes`],
+    ].map(([etq, val, sub, now, prev, inv, hero]) => `<div class="kpi-c ${hero ? 'hero' : ''}"><div class="etq">${etq}</div><div class="val">${val}</div>
+      <div class="sub">${now !== undefined ? delta(now, prev, inv) + ' <span class="muted">vs. ' + ant + '</span>' : ''}</div><div class="sub2">${sub}</div></div>`).join('');
+    const y = String(d.anio), y0 = String(d.anio - 1), sel = est.modo === 'mensual' ? +$('#mes').value - 1 : -1;
+    const hoyD = new Date(), corte = d.anio === hoyD.getFullYear() ? hoyD.getMonth() : 11;   // meses futuros sin dato
+    const serieY = R.serie_valor[y].map((v, i) => i <= corte ? v : null);
+    GSO.chart('cResLinea', { type: 'line', data: { labels: d.meses, datasets: [
+        { label: y, data: serieY, borderColor: C[0], backgroundColor: C[0] + '1f', fill: true, tension: .3, borderWidth: 2,
+          pointRadius: d.meses.map((_, i) => i === sel ? 6 : 3), pointBackgroundColor: C[0] },
+        { label: y0, data: R.serie_valor[y0], borderColor: 'rgb(150,160,172)', borderDash: [5, 4], borderWidth: 2, tension: .3, pointRadius: 0 } ] },
+      options: { interaction: { mode: 'index', intersect: false }, scales: { x: ejeX, y: ejeY(true) },
+        plugins: { legend: { position: 'top', align: 'end' }, tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${GSO.pesos(c.raw)}` } } } } });
+    const tipos = [['Entrega', C[0]], ['Préstamo', C[2]], ['Roto', C[1]], ['Perdido', C[3]], ['Vencido', C[4]]];
+    const tot = tipos.reduce((s, [k]) => s + (a.por_razon[k] || 0), 0), mx = Math.max(1, ...tipos.map(([k]) => a.por_razon[k] || 0));
+    $('#l-tipo').innerHTML = tipos.map(([k, col]) => { const n = a.por_razon[k] || 0, pct = tot ? n * 100 / tot : 0;
+      return `<li><div class="fila"><span><span class="punto" style="background:${col}"></span>${k}</span><b>${GSO.n(n)} u. <span class="muted">· ${pct.toFixed(1).replace('.', ',')}%</span></b></div>
+        <div class="pista"><div style="width:${Math.max(n ? 1.5 : 0, n * 100 / mx)}%;background:${col}"></div></div></li>`; }).join('') +
+      `<li class="total"><div class="fila"><span>Total de salidas</span><b>${GSO.n(tot)} u.</b></div></li>`;
+    const ord = R.regiones.labels.map((l, i) => [l, R.regiones.valor[i]]).sort((u, v) => v[1] - u[1]);
+    GSO.chart('cResReg', { type: 'bar', data: { labels: ord.map(x => x[0]), datasets: [barra('Valor entregado', ord.map(x => x[1]), C[0])] },
+      options: { indexAxis: 'y', scales: { x: ejeY(true), y: { grid: { display: false }, border: { display: false } } },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + GSO.pesos(c.raw) } } } } });
+    const v = { vencidas: d.insumos.vencimiento.vencidas + d.instrumental.vencimiento.vencidas,
+                proximas: d.insumos.vencimiento.proximas + d.instrumental.vencimiento.proximas };
+    $('#l-dep').innerHTML = [
+      ['Valor actual en stock', GSO.pesos(R.stock_valor)],
+      ['Existencias de insumos', GSO.n(d.insumos.existentes) + ' u.'],
+      ['Existencias de instrumental', GSO.n(d.instrumental.existentes) + ' u.'],
+      ['Unidades vencidas en depósito', `<span style="color:var(--rojo)">${GSO.n(v.vencidas)} u.</span>`],
+      ['Próximas a vencer', `<span style="color:var(--amarillo)">${GSO.n(v.proximas)} u.</span>`],
+      ['Ajustes: sobrantes / faltantes', `+${GSO.n(a.ajuste_sobrante)} / −${GSO.n(a.ajuste_faltante)} u.`],
+    ].map(([k, val]) => `<li><span>${k}</span><b>${val}</b></li>`).join('');
+    pintarDescriptiva();
+  }
+  if (t === 'exp') {
+    const e = d.expedientes;
+    mini('#k-exp', [
+      ['En el período', GSO.n(e.periodo), '', null, e.periodo, d.resumen.anterior.expedientes],
+      ['De insumos', GSO.n(e.por_grupo.Insumo || 0), 'en el período'],
+      ['De instrumental', GSO.n(e.por_grupo.Instrumental || 0), 'en el período'],
+      ['Monto comprado', GSO.corto(e.valor), '', null, e.valor, d.resumen.anterior.comprado],
+      ['Existentes', GSO.n(e.existentes), 'al cierre'],
+      ['Activos', GSO.n(e.activos), '', C[0]], ['Cerrados', GSO.n(e.cerrados), '', 'rgb(85,98,112)'],
+    ]);
+    $('#anioExp').textContent = '· ' + $('#anio').value;
+    GSO.chart('cExpMes', { type: 'bar', data: { labels: d.meses, datasets: [
+        barra('Insumos', e.serie.Insumo, resaltar(C[0])), barra('Instrumental', e.serie.Instrumental, resaltar(C[1])) ] },
+      options: { scales: { x: { ...ejeX, stacked: true }, y: { ...ejeY(), stacked: true } }, plugins: { legend: { position: 'top', align: 'end' } } } });
+    GSO.chart('cExpEstado', { type: 'doughnut', data: { labels: ['Activos', 'Cerrados'],
+        datasets: [{ data: [e.activos, e.cerrados], backgroundColor: [C[0], 'rgb(180,190,200)'], borderColor: '#fff', borderWidth: 2 }] },
+      options: { cutout: '64%', plugins: { legend: { position: 'bottom' } } } });
+  }
+  if (t === 'instr' || t === 'ins') {
+    const k = t === 'instr' ? 'instrumental' : 'insumos', g = d[k], pre = t === 'instr' ? 'cInstr' : 'cIns';
+    const pv = k => g.prev[k] || 0;
+    const kp = [['Existentes', GSO.n(g.existentes), 'al cierre'], ['Ingresados', GSO.n(g.Ingreso), '', C[5], g.Ingreso, pv('Ingreso')],
+      ['Entregados', GSO.n(g.Entrega), '', C[0], g.Entrega, pv('Entrega')], ['Prestados', GSO.n(g['Préstamo']), '', C[2], g['Préstamo'], pv('Préstamo')],
+      ['Rotos', GSO.n(g.Roto), '', C[1], g.Roto, pv('Roto'), true], ['Perdidos', GSO.n(g.Perdido), '', C[3], g.Perdido, pv('Perdido'), true]];
+    kp.push(['Vencidos (bajas)', GSO.n(g.Vencido), '', C[4], g.Vencido, pv('Vencido'), true]);
+    mini('#k-' + t, kp);
+    {
+      const v = g.vencimiento, tipoUrl = t === 'ins' ? 'insumos' : 'instrumental', nom = t === 'ins' ? 'insumos' : 'elementos';
+      $(t === 'ins' ? '#k-venc' : '#k-venc-instr').innerHTML = `
+        <a class="alerta amarillo" href="/${tipoUrl}/consultar?estado=proximo"><span class="ico">⏱</span><div><div class="n">${GSO.n(v.proximas)} u.</div><div class="t">próximas a vencer · ${v.el_proximos} ${nom}</div></div></a>
+        <a class="alerta rojo" href="/${tipoUrl}/consultar?estado=vencido"><span class="ico">!</span><div><div class="n">${GSO.n(v.vencidas)} u.</div><div class="t">vencidas en depósito · ${v.el_vencidos} ${nom}</div></div></a>
+        <div class="alerta ok"><span class="ico">✓</span><div><div class="n">${GSO.n(g.Vencido)} u.</div><div class="t">dadas de baja por vencimiento en el período</div></div></div>`;
+    }
+    GSO.chart(pre + 'Reg', { type: 'bar', data: { labels: g.regiones, datasets: [
+        barra('Entrega', g.por_region['Entrega'], C[0]), barra('Préstamo', g.por_region['Préstamo'], C[2]) ] },
+      options: { scales: { x: { ...ejeX, stacked: true }, y: { ...ejeY(), stacked: true } }, plugins: { legend: { position: 'top', align: 'end' },
+        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${GSO.n(c.raw)} u.` } } } } });
+    GSO.chart(pre + 'Mes', { type: 'bar', data: { labels: d.meses,
+        datasets: RZ.map(([r, col]) => barra(r, g.serie[r], resaltar(col))) },
+      options: { scales: { x: { ...ejeX, stacked: true }, y: { ...ejeY(), stacked: true } }, plugins: { legend: { position: 'top', align: 'end' } } } });
+    GSO.chart(pre + 'Top', { type: 'bar', data: { labels: g.top.map(x => x.descripcion), datasets: [barra('Unidades entregadas', g.top.map(x => x.c), C[0], { borderSkipped: 'start' })] },
+      options: { indexAxis: 'y', scales: { x: ejeY(), y: { grid: { display: false }, border: { display: false } } }, plugins: { legend: { display: false } } } });
+  }
+  if (t === 'esp') {
+    const e = d.especialidad;
+    GSO.chart('cEspStock', { type: 'bar', data: { labels: e.labels, datasets: [barra('Insumos', e.stock.Insumo, C[0]), barra('Instrumental', e.stock.Instrumental, C[1])] },
+      options: { scales: { x: { ...ejeX, stacked: true }, y: { ...ejeY(true), stacked: true } }, plugins: { legend: { position: 'top', align: 'end' },
+        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${GSO.pesos(c.raw)}` } } } } });
+    GSO.chart('cEspEnt', { type: 'bar', data: { labels: e.labels, datasets: [barra('Entregado', e.entregado, C[2])] },
+      options: { scales: { x: ejeX, y: ejeY(true) }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + GSO.pesos(c.raw) } } } } });
+    const tot = i => e.stock.Insumo[i] + e.stock.Instrumental[i];
+    $('#tEsp').innerHTML = `<thead><tr><th>Especialidad</th><th class="num">Insumos en stock</th><th class="num">Instrumental en stock</th><th class="num">Total en stock</th><th class="num">Entregado en el período</th></tr></thead><tbody>` +
+      e.labels.map((l, i) => `<tr><td>${l}</td><td class="num">${GSO.pesos(e.stock.Insumo[i])}</td><td class="num">${GSO.pesos(e.stock.Instrumental[i])}</td><td class="num"><b>${GSO.pesos(tot(i))}</b></td><td class="num">${GSO.pesos(e.entregado[i])}</td></tr>`).join('') +
+      `</tbody><tfoot><tr><td>Total</td><td class="num">${GSO.pesos(e.stock.Insumo.reduce((a, b) => a + b, 0))}</td><td class="num">${GSO.pesos(e.stock.Instrumental.reduce((a, b) => a + b, 0))}</td><td class="num">${GSO.pesos(e.labels.reduce((a, _, i) => a + tot(i), 0))}</td><td class="num">${GSO.pesos(e.entregado.reduce((a, b) => a + b, 0))}</td></tr></tfoot>`;
+  }
+  if (t === 'el') {
+    const e = d.elemento, cats = [['Stock', 'En stock (actual)', C[4]], ['Entrega', 'Entregados', C[0]], ['Préstamo', 'Prestados', C[2]], ['Roto', 'Rotos', C[1]], ['Perdido', 'Perdidos', C[3]], ['Vencido', 'Vencidos', 'rgb(120,130,140)']];
+    const g = k => e[k] || { cantidad: 0, valor: 0 };
+    mini('#k-el', cats.map(([k, l]) => [l, GSO.corto(g(k).valor), GSO.n(g(k).cantidad) + ' unidades']));
+    GSO.chart('cElValor', { type: 'bar', data: { labels: cats.map(x => x[1]), datasets: [{ ...barra('Pesos', cats.map(([k]) => g(k).valor), cats.map(x => x[2])) }] },
+      options: { scales: { x: ejeX, y: ejeY(true) }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${GSO.pesos(c.raw)} · ${GSO.n(g(cats[c.dataIndex][0]).cantidad)} u.` } } } } });
+    $('#tEl').innerHTML = '<thead><tr><th>Concepto</th><th class="num">Unidades</th><th class="num">Total estimado</th></tr></thead><tbody>' +
+      cats.map(([k, l]) => `<tr><td>${l}</td><td class="num">${GSO.n(g(k).cantidad)}</td><td class="num">${GSO.pesos(g(k).valor)}</td></tr>`).join('') + '</tbody>';
+  }
+}
+
+
+// ---------- Estadística descriptiva (pestaña Resumen)
+function fmtD(v, u, corto){
+  if (v === null || v === undefined) return '—';
+  if (u === 'pesos') return corto ? GSO.corto(v) : GSO.pesos(v);
+  const r = Math.round(v * 100) / 100;
+  return r.toLocaleString('es-AR', {maximumFractionDigits: 2}) + (u === 'días' ? ' d' : '');
+}
+function pintarDescriptiva(){
+  const d = est.datos; if (!d || !d.descriptiva) return;
+  const sel = $('#dVar');
+  if (!sel.options.length) sel.innerHTML = d.descriptiva.map(v => `<option value="${v.clave}">${v.nombre}</option>`).join('');
+  const v = d.descriptiva.find(x => x.clave === sel.value) || d.descriptiva[0], u = v.unidad;
+  const alc = {período: 'Datos del período elegido (' + d.periodo + ')', año: 'Meses transcurridos del año ' + d.anio, actual: 'Situación actual del depósito (no depende del período)'};
+  $('#dAlc').textContent = alc[v.alcance] + ' · n = ' + GSO.n(v.n) + ' observaciones';
+  if (!v.n) {
+    $('#dMed').innerHTML = '<div class="vacio">No hay datos para esta variable en el período elegido.</div>';
+    ['#dBox', '#dInt'].forEach(s => $(s).innerHTML = ''); $('#dFrec').innerHTML = ''; $('#dHistInfo').textContent = '';
+    GSO.chart('cDesHist', {type: 'bar', data: {labels: [], datasets: []}}); return;
+  }
+  const f = x => fmtD(x, u), fs = x => (x === null || x === undefined) ? '—' : x.toLocaleString('es-AR', {maximumFractionDigits: 3});
+  const grupos = [
+    ['Tendencia central', [['Media (x̄)', f(v.media)], ['Mediana (Me)', f(v.mediana)],
+      ['Moda (Mo)', v.moda !== null ? f(v.moda) + (v.multimodal ? ' (multimodal)' : '') : 'Sin moda · clase modal ' + f(v.clase_modal[0]) + ' – ' + f(v.clase_modal[1])]]],
+    ['Dispersión', [[u === 'pesos' ? 'Varianza (s², en $²)' : 'Varianza (s²)', Math.round(v.varianza).toLocaleString('es-AR')], ['Desvío estándar (s)', f(v.desvio)],
+      ['Coeficiente de variación', v.cv === null ? '—' : v.cv.toLocaleString('es-AR') + ' %'], ['Mínimo', f(v.min)], ['Máximo', f(v.max)], ['Rango', f(v.rango)]]],
+    ['Posición', [['Q1 (percentil 25)', f(v.q1)], ['Q2 (mediana)', f(v.mediana)], ['Q3 (percentil 75)', f(v.q3)], ['Rango intercuartil', f(v.iqr)]]],
+    ['Forma', [['Asimetría (Fisher)', fs(v.asimetria)], ['Curtosis (exceso)', fs(v.curtosis)], ['Valores atípicos', GSO.n(v.atipicos) + ' (regla 1,5 × RIC)']]],
+  ];
+  $('#dMed').innerHTML = grupos.map(([t, filas]) => `<h3>${t}</h3><ul class="lista-kv small" style="margin-bottom:14px">` +
+    filas.map(([k, val]) => `<li><span>${k}</span><b>${val}</b></li>`).join('') + '</ul>').join('');
+  // histograma (clases contiguas, regla de Sturges) con líneas de media y mediana
+  const cl = v.clases, lab = cl.map(c => `${fmtD(c.li, u, true)} – ${fmtD(c.ls, u, true)}`);
+  $('#dHistInfo').textContent = `${v.k} clases (Sturges) · amplitud ${fmtD(v.ancho, u, true)}`;
+  const lineas = { id: 'lineasDesc', afterDatasetsDraw(ch){ const a = ch.chartArea, x0 = cl[0].li, x1 = cl[cl.length - 1].ls, ctx = ch.ctx;
+    [[v.media, '#EB5F28', []], [v.mediana, '#14324B', [5, 4]]].forEach(([val, col, dash]) => { if (x1 === x0) return;
+      const x = a.left + (val - x0) / (x1 - x0) * (a.right - a.left); ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash(dash);
+      ctx.beginPath(); ctx.moveTo(x, a.top); ctx.lineTo(x, a.bottom); ctx.stroke(); ctx.restore(); }); } };
+  GSO.chart('cDesHist', { type: 'bar', data: { labels: lab, datasets: [{ label: 'Frecuencia absoluta (fi)', data: cl.map(c => c.fi),
+      backgroundColor: C[0] + 'cc', borderColor: '#fff', borderWidth: 1, categoryPercentage: 1, barPercentage: 1, borderRadius: 2 }] },
+    options: { scales: { x: { ...ejeX, ticks: { maxRotation: 40, minRotation: 0, font: { size: 10.5 } } }, y: ejeY() },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` fi = ${c.raw} · fr = ${(cl[c.dataIndex].fr * 100).toFixed(1).replace('.', ',')}%` } } } },
+    plugins: [lineas] });
+  // diagrama de caja (SVG)
+  const W = 640, H = 120, L = 30, R = W - 30, lo = v.min, hi = v.max === v.min ? v.min + 1 : v.max;
+  const X = val => L + (val - lo) / (hi - lo) * (R - L), y = 46, h = 34;
+  const out = v.valores_atipicos.map(o => `<circle cx="${X(o)}" cy="${y}" r="4" fill="none" stroke="#EB5F28" stroke-width="1.5"><title>Atípico: ${f(o)}</title></circle>`).join('');
+  const tick = (val, t, dy) => `<line x1="${X(val)}" x2="${X(val)}" y1="${y + h / 2 + 6}" y2="${y + h / 2 + 12}" stroke="currentColor" opacity=".4"/>
+    <text x="${X(val)}" y="${y + h / 2 + 26 + dy}" text-anchor="middle" font-size="11" fill="currentColor" opacity=".75">${t}: ${fmtD(val, u, true)}</text>`;
+  $('#dBox').innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Diagrama de caja" style="color:var(--texto);overflow:visible">
+    <line x1="${X(v.bigote_inf)}" x2="${X(v.q1)}" y1="${y}" y2="${y}" stroke="#14324B" stroke-width="1.5"/>
+    <line x1="${X(v.q3)}" x2="${X(v.bigote_sup)}" y1="${y}" y2="${y}" stroke="#14324B" stroke-width="1.5"/>
+    <line x1="${X(v.bigote_inf)}" x2="${X(v.bigote_inf)}" y1="${y - 10}" y2="${y + 10}" stroke="#14324B" stroke-width="1.5"/>
+    <line x1="${X(v.bigote_sup)}" x2="${X(v.bigote_sup)}" y1="${y - 10}" y2="${y + 10}" stroke="#14324B" stroke-width="1.5"/>
+    <rect x="${X(v.q1)}" y="${y - h / 2}" width="${Math.max(2, X(v.q3) - X(v.q1))}" height="${h}" rx="4" fill="#0064AA" fill-opacity=".14" stroke="#0064AA" stroke-width="1.5"><title>Q1 ${f(v.q1)} · Q3 ${f(v.q3)}</title></rect>
+    <line x1="${X(v.mediana)}" x2="${X(v.mediana)}" y1="${y - h / 2}" y2="${y + h / 2}" stroke="#14324B" stroke-width="2.5"><title>Mediana ${f(v.mediana)}</title></line>
+    <path d="M${X(v.media)} ${y - 6} l6 6 l-6 6 l-6 -6z" fill="#EB5F28"><title>Media ${f(v.media)}</title></path>
+    ${out}${tick(v.min, 'Mín', 0)}${tick(v.mediana, 'Me', 14)}${tick(v.max, 'Máx', 0)}</svg>
+    <div class="leyenda-desc"><span><i class="cuad"></i>Caja: Q1 a Q3</span><span><i class="lin mediana"></i>Mediana</span><span><i class="rombo"></i>Media</span><span><i class="circ"></i>Atípicos</span></div>`;
+  // tabla de frecuencias
+  $('#dFrec').innerHTML = `<thead><tr><th>Clase [Li – Ls)</th><th class="num">Marca de clase (xi)</th><th class="num">Frec. absoluta (fi)</th><th class="num">Frec. relativa (fr)</th><th class="num">Frec. abs. acumulada (Fi)</th><th class="num">Frec. rel. acumulada (Fr)</th></tr></thead><tbody>` +
+    cl.map(c => `<tr><td>${fmtD(c.li, u, true)} – ${fmtD(c.ls, u, true)}</td><td class="num">${fmtD(c.marca, u, true)}</td><td class="num">${c.fi}</td>
+      <td class="num">${(c.fr * 100).toFixed(1).replace('.', ',')}%</td><td class="num">${c.Fi}</td><td class="num">${(c.Fr * 100).toFixed(1).replace('.', ',')}%</td></tr>`).join('') +
+    `</tbody><tfoot><tr><td>Total</td><td></td><td class="num">${v.n}</td><td class="num">100%</td><td></td><td></td></tr></tfoot>`;
+  // interpretación automática
+  const it = [], dif = v.mediana ? (v.media - v.mediana) / Math.abs(v.mediana) : 0;
+  if (v.asimetria !== null) it.push(Math.abs(v.asimetria) < 0.5 ? 'La distribución es <b>aproximadamente simétrica</b>: media y mediana son parecidas.'
+    : v.asimetria > 0 ? `<b>Asimetría positiva</b> (${fs(v.asimetria)}): la mayoría de los datos son bajos y unos pocos valores altos estiran la cola derecha; por eso la media (${f(v.media)}) supera a la mediana (${f(v.mediana)}).`
+    : `<b>Asimetría negativa</b> (${fs(v.asimetria)}): predominan valores altos y unos pocos bajos estiran la cola izquierda; la media (${f(v.media)}) queda por debajo de la mediana (${f(v.mediana)}).`);
+  if (v.cv !== null) it.push(v.cv < 15 ? `Dispersión <b>baja</b> (CV ${v.cv.toLocaleString('es-AR')}%): los datos son homogéneos y la media es representativa.`
+    : v.cv < 30 ? `Dispersión <b>moderada</b> (CV ${v.cv.toLocaleString('es-AR')}%): la media es razonablemente representativa.`
+    : `Dispersión <b>alta</b> (CV ${v.cv.toLocaleString('es-AR')}%): los datos son heterogéneos; conviene describirlos con la mediana y el rango intercuartil.`);
+  if (v.curtosis !== null) it.push(Math.abs(v.curtosis) < 0.5 ? 'Curtosis cercana a 0: forma <b>mesocúrtica</b>, similar a la normal.'
+    : v.curtosis > 0 ? `Curtosis ${fs(v.curtosis)}: distribución <b>leptocúrtica</b>, con datos concentrados cerca del centro y colas largas.`
+    : `Curtosis ${fs(v.curtosis)}: distribución <b>platicúrtica</b>, más achatada que la normal.`);
+  it.push(`El 50% central de los datos está entre <b>${f(v.q1)}</b> y <b>${f(v.q3)}</b> (rango intercuartil ${f(v.iqr)}).`);
+  it.push(v.atipicos ? `Hay <b>${v.atipicos} valor${v.atipicos > 1 ? 'es' : ''} atípico${v.atipicos > 1 ? 's' : ''}</b> fuera de [Q1 − 1,5·RIC ; Q3 + 1,5·RIC]; conviene revisarlos.` : 'No hay valores atípicos según la regla de 1,5 × RIC.');
+  $('#dInt').innerHTML = it.map(t => `<li>${t}</li>`).join('');
+}
+$('#dVar').addEventListener('change', pintarDescriptiva);
+// --- controles
+document.querySelectorAll('#modo button').forEach(b => b.onclick = () => {
+  est.modo = b.dataset.m; document.querySelectorAll('#modo button').forEach(x => x.classList.toggle('on', x === b));
+  $('#campoMes').style.visibility = est.modo === 'mensual' ? 'visible' : 'hidden'; cargar(); });
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  est.tab = b.dataset.t; document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.id === 'p-' + est.tab)); pintar(); });
+['#anio', '#mes', '#elemento'].forEach(s => $(s).onchange = cargar);
+function mover(delta){
+  const a = $('#anio'), m = $('#mes');
+  if (est.modo === 'anual') { const y = +a.value + delta; if ([...a.options].some(o => o.value == y)) a.value = y; else return; }
+  else { let mm = +m.value + delta, y = +a.value; if (mm < 1) { mm = 12; y--; } if (mm > 12) { mm = 1; y++; }
+         if (![...a.options].some(o => o.value == y)) return; a.value = y; m.value = mm; }
+  cargar();
+}
+$('#prev').onclick = () => mover(-1); $('#next').onclick = () => mover(1);
+$('#campoMes').style.visibility = 'hidden';
+window.addEventListener('beforeprint', () => { const t0 = est.tab; document.querySelectorAll('.panel').forEach(p => p.classList.add('on'));
+  ['res','exp','instr','ins','esp','el'].forEach(t => { est.tab = t; pintar(); }); est.tab = t0; });
+window.addEventListener('afterprint', () => document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.id === 'p-' + est.tab)));
+cargar();
+</script>
+{% endblock %}

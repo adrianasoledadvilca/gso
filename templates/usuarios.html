@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titulo %}Usuarios{% endblock %}
+{% block migas %}<a href="{{ url_for('admin') }}">Administrador</a> /{% endblock %}
+{% block h1 %}ABM Usuarios{% endblock %}
+{% block acciones %}<a class="btn" href="{{ url_for('usuario_form') }}">+ Nuevo usuario</a>{% endblock %}
+{% block contenido %}
+<div class="tabla-wrap"><table class="t">
+  <thead><tr><th>Usuario</th><th>Nombre</th><th>Apellido</th><th>Tipo</th><th>Creado</th><th></th></tr></thead>
+  <tbody>{% for u in filas %}<tr>
+    <td><b>{{ u.usuario }}</b></td><td>{{ u.nombre }}</td><td>{{ u.apellido }}</td>
+    <td><span class="badge {{ 'b-azul' if u.rol=='Administrador' else 'b-gris' }}">{{ u.rol }}</span></td><td>{{ u.creado|fecha }}</td>
+    <td style="white-space:nowrap;text-align:right"><a class="btn sec chico" href="{{ url_for('usuario_form', uid=u.id) }}">Modificar</a>
+      {% if u.usuario != 'Admin' and u.usuario != usuario_actual %}<form method="post" action="{{ url_for('usuario_eliminar', uid=u.id) }}" style="display:inline" onsubmit="return confirm('¿Eliminar al usuario {{ u.usuario }}?')">{{ csrf_campo() }}<button class="btn peligro chico">Baja</button></form>{% endif %}</td>
+  </tr>{% endfor %}</tbody></table></div>
+{% endblock %}

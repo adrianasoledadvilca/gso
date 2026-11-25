@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% set nombre_mod = 'Insumos' if grupo=='Insumo' else 'Instrumental' %}
+{% block titulo %}{{ 'ABM de ' if es_abm else 'Consultar ' }}{{ nombre_mod }}{% endblock %}
+{% block migas %}<a href="{{ url_for('modulo_elementos', tipo=tipo) }}">{{ nombre_mod }}</a> /{% endblock %}
+{% block h1 %}{{ 'ABM de ' if es_abm else 'Consultar ' }}{{ nombre_mod }}{% endblock %}
+{% block acciones %}
+  <button class="btn sec" onclick="print()">Imprimir / PDF</button>
+  <a class="btn sec" href="?{{ request.query_string.decode() }}&formato=xlsx">Excel</a>
+  <a class="btn" href="{{ url_for('elemento_form', tipo=tipo) }}">+ Nuevo</a>
+{% endblock %}
+{% block contenido %}
+<form class="filtros card plana" method="get">
+  <div class="campo ancho"><label>Nombre</label><input type="search" name="q" value="{{ f.q }}" placeholder="Descripción o especificación…" data-filtrar="#tEl"></div>
+  <div class="campo"><label>Especialidad</label><select name="especialidad" onchange="this.form.submit()"><option value="">Todas</option>{% for e in especialidades %}<option {% if f.especialidad==e %}selected{% endif %}>{{ e }}</option>{% endfor %}</select></div>
+  <div class="campo"><label>Estado</label><select name="estado" onchange="this.form.submit()">
+    <option value="">Todos</option>
+    {% if true %}<option value="proximo" {% if f.estado=='proximo' %}selected{% endif %}>Próximo a vencer</option><option value="vencido" {% if f.estado=='vencido' %}selected{% endif %}>Vencido</option>{% endif %}
+    <option value="critico" {% if f.estado=='critico' %}selected{% endif %}>Estado crítico</option>
+    <option value="agotado" {% if f.estado=='agotado' %}selected{% endif %}>Agotado</option>
+  </select></div>
+  <button class="btn">Consultar</button>
+  {% if true %}<input type="hidden" name="vence" value="{{ f.vence }}">{% endif %}
+  {% if f.q or f.especialidad or f.estado or f.vence %}<a class="btn sec" href="?">Limpiar</a>{% endif %}
+</form>
+<div class="solo-print"><h2>{{ nombre_mod }} — {{ hoy.strftime('%d/%m/%Y') }}</h2></div>
+{% if true %}
+{% set qs = {'q': f.q, 'especialidad': f.especialidad, 'estado': f.estado} %}
+<div class="cat-tabs no-print" role="tablist" aria-label="Categoría de vencimiento">
+  {% for clave, etq, desc in [('', 'Todos', ''), ('si', 'Con vencimiento', 'Generan alertas de vencido / próximo a vencer'), ('no', 'Sin vencimiento', 'Productos sin fecha de caducidad del fabricante')] %}
+  <a class="cat-tab {{ 'on' if f.vence == clave else '' }}" href="{{ url_for(request.endpoint, tipo=tipo, vence=clave or None, **qs) }}" title="{{ desc }}">
+    {% if clave == 'si' %}<span class="cat-ico si">⏱</span>{% elif clave == 'no' %}<span class="cat-ico no">∞</span>{% endif %}{{ etq }} <span class="cat-n">{{ categorias[clave] }}</span></a>
+  {% endfor %}
+</div>
+{% endif %}
+<p class="muted small">{{ filas|length }} elemento(s) · valor total {{ filas|sum(attribute='valor')|pesos }}</p>
+<div id="tEl"><div class="tabla-wrap"><table class="t" data-ordenable>
+  <thead><tr><th class="ord">Descripción</th><th class="ord">Especialidad</th>{% if grupo=='Insumo' %}<th class="ord">Envase</th>{% endif %}
+    <th class="num ord">Stock</th><th class="num ord">Mínimo</th><th class="num ord">Precio unit.</th><th class="num ord">Valor</th>
+    {% if true %}<th class="ord">Próx. vencimiento</th>{% endif %}<th class="ord">Estado</th>{% if es_abm %}<th class="no-print"></th>{% endif %}</tr></thead>
+  <tbody>
+  {% for e in filas %}
+    <tr>
+      <td><a href="{{ url_for('elemento_form', tipo=tipo, elid=e.id) }}">{{ e.descripcion }}</a></td><td>{{ e.especialidad }}</td>
+      {% if grupo=='Insumo' %}<td>{{ e.envase or '' }}</td>{% endif %}
+      <td class="num"><b>{{ e.stock_actual|num }}</b></td><td class="num muted">{{ e.stock_minimo }}</td>
+      <td class="num" data-v="{{ e.precio_unitario }}">{{ e.precio_unitario|pesos }}</td><td class="num" data-v="{{ e.valor }}">{{ e.valor|pesos }}</td>
+      {% if true %}<td data-v="{{ e.prox_venc or '9999' }}">{% if not e.lleva_vencimiento %}<span class="badge b-gris">No vence</span>{% else %}{{ e.prox_venc|fecha }}{% endif %}
+        {% if e.estado_venc=='vencido' %}<span class="badge b-rojo">{{ e.cant_vencida }} venc.</span>{% elif e.estado_venc=='proximo' %}<span class="badge b-amarillo">{{ e.cant_por_vencer }} por vencer</span>{% endif %}</td>{% endif %}
+      <td>{% if e.estado_stock=='agotado' %}<span class="badge b-rojo">Agotado</span>{% elif e.estado_stock=='critico' %}<span class="badge b-amarillo">Crítico</span>{% else %}<span class="badge b-verde">Normal</span>{% endif %}</td>
+      {% if es_abm %}<td class="no-print" style="white-space:nowrap">
+        <a class="btn sec chico ico-btn" href="{{ url_for('elemento_form', tipo=tipo, elid=e.id) }}" title="Modificar" aria-label="Modificar «{{ e.descripcion }}»">✎</a>
+        <form method="post" action="{{ url_for('elemento_eliminar', tipo=tipo, elid=e.id) }}" style="display:inline" onsubmit="return confirm('¿Eliminar «{{ e.descripcion }}»?')">{{ csrf_campo() }}<button class="btn peligro chico ico-btn" title="Dar de baja" aria-label="Dar de baja «{{ e.descripcion }}»">✕</button></form></td>{% endif %}
+    </tr>
+  {% else %}<tr><td colspan="11" class="vacio">No hay elementos que coincidan.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

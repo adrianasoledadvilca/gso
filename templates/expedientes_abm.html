@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block titulo %}ABM de Expedientes{% endblock %}
+{% block migas %}<a href="{{ url_for('expedientes') }}">Expedientes</a> /{% endblock %}
+{% block h1 %}ABM de Expedientes{% endblock %}
+{% block acciones %}
+  <button class="btn sec" onclick="print()">Imprimir / PDF</button>
+  <a class="btn sec" href="?formato=xlsx">Excel</a>
+  <a class="btn" href="{{ url_for('expediente_form') }}">+ Nuevo expediente</a>
+{% endblock %}
+{% block contenido %}
+<div class="filtros no-print"><div class="campo ancho"><label>Buscar en la tabla</label><input type="search" data-filtrar="#tablaExp" placeholder="Número, grupo, estado…"></div></div>
+<div id="tablaExp">
+<div class="tabla-wrap">
+<table class="t" data-ordenable>
+  <thead><tr><th class="ord">Expediente</th><th class="ord">Grupo</th><th class="ord">Fecha</th><th class="ord">Primera entrega</th><th class="ord">Estado</th><th class="num ord">Valor total</th><th class="no-print"></th></tr></thead>
+  <tbody>
+  {% for x in filas %}
+    <tr>
+      <td><a href="{{ url_for('expediente_detalle', eid=x.id) }}"><b>{{ x.nro_expediente }}</b></a></td>
+      <td>{{ x.grupo }}</td><td data-v="{{ x.fecha }}">{{ x.fecha|fecha }}</td><td data-v="{{ x.fecha_entrega or '' }}">{{ x.fecha_entrega|fecha }}</td>
+      <td><span class="badge {{ 'b-verde' if x.estado=='Activo' else 'b-gris' }}">{{ x.estado }}</span></td>
+      <td class="num" data-v="{{ x.valor_total }}">{{ x.valor_total|pesos }}</td>
+      <td class="no-print" style="white-space:nowrap">
+        <a class="btn sec chico" href="{{ url_for('expediente_form', eid=x.id) }}">Modificar</a>
+        <form method="post" action="{{ url_for('expediente_eliminar', eid=x.id) }}" style="display:inline" onsubmit="return confirm('¿Eliminar el expediente {{ x.nro_expediente }}? Se quitará el stock ingresado por él.')">{{ csrf_campo() }}
+          <button class="btn peligro chico">Baja</button></form>
+      </td>
+    </tr>
+  {% else %}<tr><td colspan="7" class="vacio">No hay expedientes. Use «Nuevo expediente» para cargar el primero.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

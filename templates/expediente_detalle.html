@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block titulo %}Expediente {{ exp.nro_expediente }}{% endblock %}
+{% block migas %}<a href="{{ url_for('expedientes') }}">Expedientes</a> /{% endblock %}
+{% block h1 %}Expediente {{ exp.nro_expediente }}{% endblock %}
+{% block acciones %}
+  <a class="btn sec" href="{{ url_for('expediente_pedido', eid=exp.id) }}">Pedido de provisión</a>
+  <a class="btn sec" href="{{ url_for('expediente_especificaciones', eid=exp.id) }}">Especificaciones técnicas</a>
+  <button class="btn sec" onclick="print()">Imprimir / PDF</button>
+  <a class="btn sec" href="?formato=xlsx">Excel</a>
+  <a class="btn" href="{{ url_for('expediente_form', eid=exp.id) }}">{{ 'Reabrir' if exp.estado == 'Cerrado' else 'Modificar' }}</a>
+{% endblock %}
+{% block contenido %}
+{% set comprado = items|sum(attribute='cantidad') %}
+{% set restante = items|sum(attribute='restante') %}
+<div class="grid g4 hero-ancho">
+  <div class="card kpi hero"><div class="etq">Total de compra</div><div class="val">{{ exp.valor_total|pesos }}</div><div class="sub">{{ exp.grupo }} · {{ items|length }} renglones</div></div>
+  <div class="card kpi"><div class="etq">Estado</div><div class="val" style="font-size:22px"><span class="badge {{ 'b-verde' if exp.estado=='Activo' else 'b-gris' }}" style="font-size:15px">{{ exp.estado }}</span></div><div class="sub">Alta: {{ exp.fecha|fecha }} · 1ª entrega: {{ exp.fecha_entrega|fecha }}</div></div>
+  <div class="card kpi"><div class="etq">Unidades compradas</div><div class="val">{{ comprado|num }}</div><div class="sub">Sin consumir: {{ restante|num }}</div></div>
+  <div class="card kpi"><div class="etq">Consumido</div><div class="val">{% if comprado %}{{ ((comprado - restante) * 100 / comprado)|round(1) }}%{% else %}—{% endif %}</div>
+    <div style="height:6px;background:var(--linea);border-radius:4px;margin-top:8px;overflow:hidden"><div style="height:100%;width:{{ ((comprado - restante) * 100 / comprado) if comprado else 0 }}%;background:var(--acento)"></div></div></div>
+</div>
+<div class="seccion">
+<h2>Elementos del expediente</h2>
+<div class="tabla-wrap">
+<table class="t" data-ordenable>
+  <thead><tr><th class="ord">Renglón</th><th class="ord">Elemento</th><th class="ord">Especialidad</th><th class="num ord">Comprado</th><th class="num ord">Sin consumir</th><th class="num ord">Precio unit.</th><th class="num ord">Subtotal</th>{% if true %}<th class="ord">Vencimiento</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for i in items %}
+    <tr><td>{{ i.nro }}{{ i.letra }}</td><td>{{ i.descripcion }}</td><td>{{ i.especialidad }}</td>
+      <td class="num">{{ i.cantidad|num }} <span class="muted small">{{ i.unidad }}</span></td>
+      <td class="num">{{ i.restante|num }}</td>
+      <td class="num" data-v="{{ i.precio_unitario }}">{{ i.precio_unitario|pesos }}</td>
+      <td class="num" data-v="{{ i.cantidad*i.precio_unitario }}">{{ (i.cantidad*i.precio_unitario)|pesos }}</td>
+      {% if true %}<td data-v="{{ i.fecha_vencimiento or '' }}">{{ i.fecha_vencimiento|fecha }}</td>{% endif %}</tr>
+  {% else %}<tr><td colspan="8" class="vacio">El expediente no tiene elementos cargados.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><td colspan="3">Total</td><td class="num">{{ comprado|num }}</td><td class="num">{{ restante|num }}</td><td></td><td class="num">{{ exp.valor_total|pesos }}</td>{% if true %}<td></td>{% endif %}</tr></tfoot>
+</table></div>
+</div>
+<div class="seccion grid g2 no-print">
+  <div class="card"><h2>Historial de ABM</h2>
+    <ul class="lista-simple small">{% for l in log %}<li><span><b>{{ l.accion }}</b> por {{ l.usuario }}</span><span class="muted">{{ l.fecha|fecha }}</span></li>{% else %}<li class="muted">Sin registros.</li>{% endfor %}</ul>
+  </div>
+  <div class="card"><h2>Eliminar expediente</h2>
+    {% if exp.estado == 'Cerrado' %}<p class="small muted">El expediente está cerrado: no puede modificarse ni eliminarse. Para cambiarlo, use «Modificar» y páselo a «Activo».</p>
+    {% elif bloqueado %}<p class="small muted">No puede eliminarse porque ya hay elementos de este expediente con bajas (entregas, préstamos, etc.). Puede cambiar su estado a «Cerrado».</p>
+    {% else %}<p class="small muted">Se eliminará el expediente y el stock que ingresó con él.</p>
+      <form method="post" action="{{ url_for('expediente_eliminar', eid=exp.id) }}" onsubmit="return confirm('¿Eliminar definitivamente el expediente {{ exp.nro_expediente }}?')">{{ csrf_campo() }}<button class="btn peligro">Dar de baja el expediente</button></form>{% endif %}
+  </div>
+</div>
+{% endblock %}

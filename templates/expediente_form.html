@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block titulo %}{{ 'Modificar' if exp else 'Nuevo' }} expediente{% endblock %}
+{% block migas %}<a href="{{ url_for('expedientes') }}">Expedientes</a> / <a href="{{ url_for('expedientes_abm') }}">ABM</a> /{% endblock %}
+{% block h1 %}{{ 'Modificar expediente ' ~ exp.nro_expediente if exp else 'Nuevo expediente de compra' }}{% endblock %}
+{% block contenido %}
+<form method="post" id="fExp">{{ csrf_campo() }}
+{% if exp and exp.estado == 'Cerrado' %}
+<div class="flash error">Este expediente está <b>cerrado</b> y no puede modificarse. Para cambiarlo, elija el estado «Activo» y presione «Reabrir expediente»; después podrá editarlo.</div>
+{% endif %}
+<div class="card">
+  <h2>Datos del expediente</h2>
+  <div class="grid g4">
+    <div class="campo"><label>Año *</label><input type="number" name="anio" min="1990" max="2100" required value="{{ exp.anio if exp else hoy.year }}"></div>
+    <div class="campo"><label>Número * (hasta 8 dígitos)</label><input type="text" name="numero" required maxlength="8" pattern="\d{1,8}" value="{{ exp.numero if exp else '' }}" placeholder="12345678" id="numero"></div>
+    <div class="campo"><label>N° de expediente</label><input type="text" id="nroPrev" disabled></div>
+    <div class="campo"><label>Fecha</label><input type="date" name="fecha" value="{{ exp.fecha if exp else hoy.isoformat() }}"></div>
+    <div class="campo"><label>Grupo *</label>
+      <select name="grupo" id="grupo" {% if exp and items %}disabled{% endif %}>
+        {% for g_ in grupos %}<option {% if exp and exp.grupo==g_ %}selected{% endif %}>{{ g_ }}</option>{% endfor %}
+      </select>
+      {% if exp and items %}<input type="hidden" name="grupo" value="{{ exp.grupo }}"><span class="small muted">No se puede cambiar: el expediente ya tiene elementos.</span>{% endif %}
+    </div>
+    <div class="campo"><label>Estado</label><select name="estado">{% for e in estados %}<option {% if exp and exp.estado==e %}selected{% endif %}>{{ e }}</option>{% endfor %}</select></div>
+    <div class="campo"><label>Primera entrega</label><input type="text" disabled value="{{ exp.fecha_entrega|fecha if exp else '—' }}" title="Se asienta automáticamente con la primera entrega"></div>
+    <div class="campo"><label>Valor total</label><input type="text" id="totalPrev" disabled></div>
+  </div>
+  <h3 style="margin-top:18px">Datos para el Pedido de provisión</h3>
+  <div class="grid g3">
+    <div class="campo"><label>Artículos solicitados por</label><input type="text" name="solicitado_por" value="{{ exp.solicitado_por if exp else 'Dirección Provincial de Odontología' }}"></div>
+    <div class="campo"><label>Para ser utilizados en</label><input type="text" name="utilizado_en" value="{{ exp.utilizado_en if exp else 'Dirección Provincial de Odontología' }}"></div>
+    <div class="campo"><label>Para entregar en / a</label><input type="text" name="entregar_en" value="{{ exp.entregar_en if exp else 'Dirección Provincial de Odontología' }}"></div>
+  </div>
+</div>
+
+<div class="card seccion">
+  <div class="seccion-tit"><h2>Elementos comprados</h2><button type="button" class="btn sec chico" id="addRow">+ Agregar renglón</button></div>
+  {% if bloqueados %}<div class="flash error" style="margin-top:0">Los renglones marcados <b>«con bajas»</b> no pueden cambiar elemento, cantidad, precio ni vencimiento, ni quitarse, porque ya salió stock de ellos. Si hay que corregirlos, primero anule las actas de esas salidas.</div>{% endif %}
+  <p class="small muted" style="margin-top:-6px">Al guardar, cada renglón ingresa stock (Alta) con su fecha de vencimiento. Los renglones que ya tuvieron bajas quedan bloqueados.
+    ¿Falta un elemento? <a href="{{ url_for('elemento_form', tipo='insumos') }}" target="_blank">Crear insumo</a> · <a href="{{ url_for('elemento_form', tipo='instrumental') }}" target="_blank">Crear instrumental</a></p>
+  <div class="tabla-wrap">
+  <table class="t tabla-items">
+    <thead><tr><th style="width:56px">Nro</th><th style="width:56px">Letra</th><th>Elemento</th><th style="width:120px">Unidad</th><th style="width:90px">Cantidad</th><th style="width:130px">$ Unitario</th><th style="width:150px" class="col-venc">Vencimiento</th><th class="num" style="width:120px">Subtotal</th><th style="width:40px"></th></tr></thead>
+    <tbody id="items"></tbody>
+    <tfoot><tr><td colspan="7" style="text-align:right">Total del expediente</td><td class="num" id="total">$ 0,00</td><td></td></tr></tfoot>
+  </table></div>
+</div>
+<div class="barra der seccion">
+  <a class="btn sec" href="{{ url_for('expediente_detalle', eid=exp.id) if exp else url_for('expedientes') }}">Cancelar</a>
+  <button class="btn">{{ 'Reabrir expediente' if exp and exp.estado == 'Cerrado' else 'Guardar expediente' }}</button>
+</div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+const ELEMENTOS = {{ elementos|tojson }};
+const ITEMS = {{ items|tojson }};
+const BLOQ = new Set({{ bloqueados|list|tojson }});
+const ENVASES = {{ envases|tojson }};
+const tbody = document.getElementById('items');
+const selGrupo = document.getElementById('grupo');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function opcionesElem(sel){
+  const g = selGrupo.value; let html = '<option value="">— Seleccione —</option>', esp = null;
+  ELEMENTOS.filter(e => e.grupo === g).forEach(e => {
+    if (e.especialidad !== esp){ if (esp !== null) html += '</optgroup>'; html += `<optgroup label="${esc(e.especialidad)}">`; esp = e.especialidad; }
+    html += `<option value="${e.id}" ${e.id==sel?'selected':''}>${esc(e.descripcion)}</option>`;
+  });
+  return html + (esp !== null ? '</optgroup>' : '');
+}
+function fila(it = {}){
+  const tr = document.createElement('tr');
+  const bloq = it.id && BLOQ.has(it.id);
+  const unidades = ENVASES.map(u => `<option ${u==(it.unidad||'Unidad')?'selected':''}>${esc(u)}</option>`).join('');
+  tr.innerHTML = `
+    <td><input type="hidden" name="item_id" value="${it.id||''}"><input type="text" name="nro" value="${esc(it.nro||'')}"></td>
+    <td><input type="text" name="letra" value="${esc(it.letra||'')}"></td>
+    <td>${bloq ? `<input type="hidden" name="elemento_id" value="${it.elemento_id}">${esc(it.descripcion)} <span class="badge b-amarillo" title="Tiene bajas registradas">con bajas</span>`
+               : `<select name="elemento_id" class="sel-el">${opcionesElem(it.elemento_id)}</select>`}</td>
+    <td><select name="unidad">${unidades}</select></td>
+    <td><input type="number" name="cantidad" min="1" value="${it.cantidad||''}" ${bloq?'readonly':''} class="c"></td>
+    <td><input type="number" name="precio" min="0" step="0.01" value="${it.precio_unitario??''}" ${bloq?'readonly':''} class="p"></td>
+    <td class="col-venc"><input type="date" name="vencimiento" class="v" value="${it.fecha_vencimiento||''}" ${bloq?'readonly':''}></td>
+    <td class="num sub">$ 0,00</td>
+    <td>${bloq ? '' : '<button type="button" class="btn peligro chico quitar" title="Quitar renglón">✕</button>'}</td>`;
+  tbody.appendChild(tr); vencFila(tr);
+  const s = tr.querySelector('.sel-el');
+  if (s) s.addEventListener('change', () => {
+    vencFila(tr);
+    const e = ELEMENTOS.find(x => x.id == s.value); if (!e) return;
+    const p = tr.querySelector('.p'); if (!p.value) p.value = e.precio_unitario || '';
+    if (e.envase) tr.querySelector('[name=unidad]').value = e.envase;
+    calc();
+  });
+  tr.querySelector('.quitar')?.addEventListener('click', () => { tr.remove(); renumerar(); calc(); });
+  calc();
+}
+// Insumos que no vencen: la fecha queda vacía y bloqueada
+function vencFila(tr){
+  const sel = tr.querySelector('.sel-el'), inp = tr.querySelector('.v'); if (!sel || !inp) return;
+  const e = ELEMENTOS.find(x => x.id == sel.value), no = e && !e.lleva_vencimiento;
+  inp.readOnly = !!no; inp.title = no ? 'Este insumo no lleva vencimiento' : '';
+  if (no) inp.value = '';
+  inp.style.opacity = no ? .45 : 1;
+}
+function renumerar(){ [...tbody.rows].forEach((tr, i) => { const n = tr.querySelector('[name=nro]'); if (!n.dataset.manual) n.value = n.value || i+1; }); }
+function calc(){
+  let t = 0;
+  [...tbody.rows].forEach(tr => { const s = (+tr.querySelector('.c').value||0) * (+tr.querySelector('.p').value||0); t += s; tr.querySelector('.sub').textContent = GSO.pesos(s); });
+  document.getElementById('total').textContent = GSO.pesos(t);
+  document.getElementById('totalPrev').value = GSO.pesos(t);
+  document.querySelectorAll('.col-venc').forEach(c => c.style.display = '');
+}
+function nroPrev(){ const a = document.querySelector('[name=anio]').value, n = document.getElementById('numero').value.replace(/\D/g,'');
+  document.getElementById('nroPrev').value = a && n ? `${a}-${n.padStart(8,'0')}` : ''; }
+tbody.addEventListener('input', calc);
+document.getElementById('addRow').onclick = () => { fila({nro: tbody.rows.length + 1}); };
+selGrupo.addEventListener('change', () => { tbody.querySelectorAll('.sel-el').forEach(s => s.innerHTML = opcionesElem(null)); calc(); });
+document.querySelector('[name=anio]').addEventListener('input', nroPrev);
+document.getElementById('numero').addEventListener('input', nroPrev);
+// Aviso (no bloqueo) si un mismo elemento figura en más de un renglón.
+document.getElementById('fExp').addEventListener('submit', e => {
+  const usados = {};
+  [...tbody.rows].forEach((tr, i) => {
+    const el = tr.querySelector('[name=elemento_id]'), c = tr.querySelector('.c');
+    if (!el || !el.value || !(+c.value > 0)) return;
+    const nro = tr.querySelector('[name=nro]').value || (i + 1);
+    (usados[el.value] = usados[el.value] || []).push(nro + (tr.querySelector('[name=letra]').value || ''));
+  });
+  const rep = Object.entries(usados).filter(([, r]) => r.length > 1).map(([id, r]) => {
+    const e = ELEMENTOS.find(x => x.id == id); return `• ${e ? e.descripcion : 'Elemento ' + id}: renglones ${r.join(', ')}`;
+  });
+  if (rep.length && !confirm('Estos elementos figuran en más de un renglón:\n\n' + rep.join('\n') +
+      '\n\nPuede ser correcto (por ejemplo, distintos vencimientos). ¿Guardar igual?')) e.preventDefault();
+});
+ITEMS.length ? ITEMS.forEach(fila) : [1,2,3].forEach(n => fila({nro:n}));
+nroPrev(); calc();
+{% if exp and exp.estado == 'Cerrado' %}
+// Expediente cerrado: todo queda de solo lectura, salvo el estado (para reabrirlo).
+document.querySelectorAll('#fExp input:not([type=hidden]), #fExp select, #fExp textarea, #fExp button[type=button]').forEach(x => { if (x.name !== 'estado') x.disabled = true; });
+document.getElementById('addRow').style.display = 'none';
+document.getElementById('fExp').classList.add('cerrado');
+{% endif %}
+</script>
+{% endblock %}

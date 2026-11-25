@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block titulo %}Inicio{% endblock %}
+{% block migas %}{{ cfg.nombre_sistema }}{% endblock %}
+{% block h1 %}Inicio{% endblock %}
+{% block acciones %}
+  <a class="btn sec" href="{{ url_for('salida_nueva') }}">Registrar entrega / baja</a>
+  <a class="btn" href="{{ url_for('expediente_form') }}">+ Nuevo expediente</a>
+{% endblock %}
+{% block contenido %}
+<div class="grid g4 hero-ancho">
+  <div class="card kpi hero">
+    <div class="etq">Total estimado en depósito</div>
+    <div class="val" data-contar="{{ total_bienes }}" data-moneda>{{ total_bienes|pesos }}</div>
+    <div class="sub">Insumos {{ (por_grupo.get('Insumo') or 0)|pesos }}<br>Instrumental {{ (por_grupo.get('Instrumental') or 0)|pesos }}</div>
+  </div>
+  <a class="card kpi" href="{{ url_for('expedientes_abm') }}" style="text-decoration:none">
+    <div class="etq">Expedientes en el sistema</div>
+    <div class="val" data-contar="{{ exp.t or 0 }}">{{ exp.t or 0 }}</div>
+    <div class="sub">Total registrados</div>
+  </a>
+  <div class="card kpi">
+    <div class="etq">Expedientes activos</div>
+    <div class="val" data-contar="{{ exp.a or 0 }}">{{ exp.a or 0 }}</div>
+    <div class="sub">{% if exp.t %}{{ ((exp.a or 0) * 100 / exp.t)|round|int }}% del total{% else %}—{% endif %}</div>
+  </div>
+  <div class="card kpi">
+    <div class="etq">Expedientes cerrados</div>
+    <div class="val" data-contar="{{ exp.c or 0 }}">{{ exp.c or 0 }}</div>
+    <div class="sub">{% if exp.t %}{{ ((exp.c or 0) * 100 / exp.t)|round|int }}% del total{% else %}—{% endif %}</div>
+  </div>
+</div>
+
+<div class="seccion">
+  <div class="seccion-tit"><h2>Alertas</h2><span class="muted small">Clic en una alerta para ver el detalle</span></div>
+  {% set A = alertas %}
+  {% set hay = A.inst_vencido or A.inst_proximo or A.ins_vencido or A.ins_proximo or A.ins_agotado or A.ins_critico or A.ins_t_agotado or A.ins_t_critico %}
+  {% if not hay %}
+    <div class="alerta ok"><span class="ico">✓</span><div><b>Sin alertas.</b> <span class="t">No hay insumos vencidos ni elementos con stock crítico o agotado.</span></div></div>
+  {% else %}
+  <div class="alertas-grid">
+    <a class="alerta rojo" href="{{ url_for('elementos_consultar', tipo='insumos', estado='vencido') }}"><span class="ico">!</span><div><span class="grupo">Insumos</span><div class="n">{{ A.ins_vencido|length }}</div><div class="t">vencidos{% if A.inst_vencido %} · <span title="Instrumental vencido">+{{ A.inst_vencido|length }} instrumental</span>{% endif %}</div></div></a>
+    <a class="alerta rojo" href="{{ url_for('elementos_consultar', tipo='insumos', estado='agotado') }}"><span class="ico">0</span><div><span class="grupo">Insumos</span><div class="n">{{ A.ins_agotado|length }}</div><div class="t">agotados</div></div></a>
+    <a class="alerta rojo" href="{{ url_for('elementos_consultar', tipo='instrumental', estado='agotado') }}"><span class="ico">0</span><div><span class="grupo">Instrumental</span><div class="n">{{ A.ins_t_agotado|length }}</div><div class="t">agotados</div></div></a>
+    <a class="alerta amarillo" href="{{ url_for('elementos_consultar', tipo='insumos', estado='proximo') }}"><span class="ico">⏱</span><div><span class="grupo">Insumos</span><div class="n">{{ A.ins_proximo|length }}</div><div class="t">próximos a vencer ({{ cfg.dias_alerta_vencimiento }} días){% if A.inst_proximo %} · +{{ A.inst_proximo|length }} instrumental{% endif %}</div></div></a>
+    <a class="alerta amarillo" href="{{ url_for('elementos_consultar', tipo='insumos', estado='critico') }}"><span class="ico">↓</span><div><span class="grupo">Insumos</span><div class="n">{{ A.ins_critico|length }}</div><div class="t">en stock crítico</div></div></a>
+    <a class="alerta amarillo" href="{{ url_for('elementos_consultar', tipo='instrumental', estado='critico') }}"><span class="ico">↓</span><div><span class="grupo">Instrumental</span><div class="n">{{ A.ins_t_critico|length }}</div><div class="t">en stock crítico</div></div></a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="seccion grid g3">
+  <div class="card">
+    <div class="card-tit"><h2>Requieren atención</h2><a class="small" href="{{ url_for('elementos_consultar', tipo='insumos', estado='alerta_venc') }}">Ver todo →</a></div>
+    <ul class="lista-simple small">
+      {% for e in (A.ins_vencido + A.inst_vencido + A.ins_agotado + A.ins_t_agotado)[:3] %}
+        <li><span>{{ e.descripcion }}</span>{% if e.estado_venc=='vencido' %}<span class="badge b-rojo">Vencido</span>{% else %}<span class="badge b-rojo">Agotado</span>{% endif %}</li>
+      {% endfor %}
+      {% for e in (A.ins_proximo + A.inst_proximo + A.ins_critico + A.ins_t_critico)[:4] %}
+        <li><span>{{ e.descripcion }}</span>{% if e.estado_venc=='proximo' %}<span class="badge b-amarillo">Vence {{ e.prox_venc|fecha }}</span>{% else %}<span class="badge b-amarillo">Stock {{ e.stock_actual }}/{{ e.stock_minimo }}</span>{% endif %}</li>
+      {% else %}{% if not (A.ins_vencido or A.ins_agotado or A.ins_t_agotado) %}<li class="muted">Nada pendiente.</li>{% endif %}{% endfor %}
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-tit"><h2>Valor en stock por grupo</h2><a class="small" href="{{ url_for('estadisticas') }}">Estadísticas →</a></div>
+    <div class="chart-box" style="height:190px"><canvas id="chGrupo"></canvas></div>
+    <ul class="lista-kv small" style="margin-top:10px">
+      <li><span><span class="punto" style="background:#0064AA"></span>Insumos</span><b>{{ (por_grupo.get('Insumo') or 0)|pesos }}</b></li>
+      <li><span><span class="punto" style="background:#F08C41"></span>Instrumental</span><b>{{ (por_grupo.get('Instrumental') or 0)|pesos }}</b></li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-tit"><h2>Últimos movimientos</h2><a class="small" href="{{ url_for('actas') }}">Actas →</a></div>
+    {% if ultimos_mov %}
+    <ul class="lista-simple small">
+      {% for m in ultimos_mov %}
+      <li><span style="display:flex;align-items:center;min-width:0"><span class="badge mov-badge {{ 'b-verde' if m.tipo=='Alta' else ('b-azul' if m.razon in ('Entrega','Préstamo') else 'b-rojo') }}">{{ m.razon }}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ m.descripcion }}">{{ m.descripcion }}</span></span>
+          <span class="muted" style="text-align:right;white-space:nowrap">{{ m.cantidad }} u.<br><span style="font-size:11px">{{ m.fecha|fecha }}</span></span></li>
+      {% endfor %}
+    </ul>
+    {% else %}<div class="vacio">Todavía no hay movimientos. Comience cargando un expediente o un elemento con stock inicial.</div>{% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
+<script>
+GSO.contadores();
+GSO.chart('chGrupo', {type:'doughnut', data:{labels:['Insumos','Instrumental'],
+  datasets:[{data:[{{ por_grupo.get('Insumo') or 0 }}, {{ por_grupo.get('Instrumental') or 0 }}], backgroundColor:[GSO.c[0], GSO.c[1]], borderColor:'#fff', borderWidth:2}]},
+  options:{cutout:'68%', plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>' '+c.label+': '+GSO.pesos(c.raw)}}}}});
+</script>
+{% endblock %}

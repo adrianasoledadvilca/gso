@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>{% block titulo %}{% endblock %} · {{ cfg.nombre_sistema }}</title>
+<link rel="icon" href="{{ url_for('static', filename=cfg.logo) }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/gso.css') }}">
+{% block head %}{% endblock %}
+</head>
+<body class="tema-{{ cfg.tema }}">
+{% set nav = [
+  ('inicio', url_for('inicio'), 'Inicio'),
+  ('expedientes', url_for('expedientes'), 'Expedientes'),
+  ('instrumental', url_for('modulo_elementos', tipo='instrumental'), 'Instrumental'),
+  ('insumos', url_for('modulo_elementos', tipo='insumos'), 'Insumos'),
+  ('estadisticas', url_for('estadisticas'), 'Estadísticas'),
+  ('listas', url_for('listas'), 'Listas'),
+] %}
+<div class="app">
+  <aside class="sidebar">
+    <a class="logo" href="{{ url_for('inicio') }}" style="text-decoration:none">
+      <img src="{{ url_for('static', filename=cfg.logo) }}" alt="Logo">
+      {% if cfg.logo != 'img/logo.png' %}<div class="nombre">{{ cfg.nombre_sistema }}</div>{% endif %}
+    </a>
+    {% set iconos = {
+      'inicio': '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+      'expedientes': '<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>',
+      'instrumental': '<path d="M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>',
+      'insumos': '<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
+      'estadisticas': '<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/>',
+      'listas': '<path d="M9 6h12"/><path d="M9 12h12"/><path d="M9 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>',
+    } %}
+    <nav class="nav">
+      {% for clave, href, etiqueta in nav %}
+        {% set ico %}<svg viewBox="0 0 24 24" aria-hidden="true">{{ iconos[clave]|safe }}</svg>{% endset %}
+        {% if seccion == clave and request.path == href %}
+          <span class="activo" aria-current="page">{{ ico }}{{ etiqueta }}</span>
+        {% elif seccion == clave %}
+          <a class="activo" href="{{ href }}">{{ ico }}{{ etiqueta }}</a>
+        {% else %}
+          <a href="{{ href }}">{{ ico }}{{ etiqueta }}</a>
+        {% endif %}
+      {% endfor %}
+    </nav>
+    <div class="side-pie">
+      <div class="avatar">{{ ((nombre_actual or usuario_actual or '?').split()|map('first')|join('')|upper)[:2] }}</div>
+      <div style="min-width:0"><b>{{ usuario_actual }}</b><br><span class="muted small">{{ nombre_actual }}</span><br>
+        <a class="small" href="{{ url_for('salir') }}">Cerrar sesión</a></div>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="migas">{% block migas %}{% endblock %}</div>
+        <h1>{% block h1 %}{% endblock %}</h1>
+      </div>
+      <div class="acciones">
+        {% block acciones %}{% endblock %}
+        {% if es_admin %}
+          {% if request.path == url_for('admin') %}<span class="btn-admin activo">ADMINISTRADOR</span>
+          {% else %}<a class="btn-admin {% if seccion=='admin' %}activo{% endif %}" href="{{ url_for('admin') }}">ADMINISTRADOR</a>{% endif %}
+        {% endif %}
+      </div>
+    </div>
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
+    {% endwith %}
+    {% block contenido %}{% endblock %}
+  </main>
+</div>
+<script src="{{ url_for('static', filename='js/gso.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

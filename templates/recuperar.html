@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Recuperar contraseña · {{ cfg.nombre_sistema }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/gso.css') }}"></head>
+<body class="tema-{{ cfg.tema }}">
+<div class="login">
+  <div class="login-box">
+    <img src="{{ url_for('static', filename=cfg.logo) }}" alt="Logo">
+    <h2>Recuperar contraseña</h2>
+    {% with msgs = get_flashed_messages(with_categories=true) %}{% for c, m in msgs %}<div class="flash {{ c }}">{{ m }}</div>{% endfor %}{% endwith %}
+    {% if paso == 2 %}
+      <p class="muted small">Su nombre de usuario es <b>{{ usuario }}</b>. Defina una contraseña nueva.</p>
+      <form method="post" autocomplete="off">{{ csrf_campo() }}
+        <input type="hidden" name="paso" value="2">
+        <div class="fila"><label>Nueva:</label><input type="password" name="nueva" minlength="4" required autofocus></div>
+        <div class="fila"><label>Repetir:</label><input type="password" name="repetir" minlength="4" required></div>
+        <button class="btn">Guardar contraseña</button>
+      </form>
+      <a href="{{ url_for('index') }}" style="color:var(--texto)">Cancelar</a>
+    {% else %}
+      <p class="muted small">Ingrese su apellido y su PIN de seguridad de 4 dígitos. Podrá ver su nombre de usuario y definir una contraseña nueva.</p>
+      <form method="post" autocomplete="off">{{ csrf_campo() }}
+        <div class="fila"><label>Apellido:</label><input type="text" name="apellido" required autofocus></div>
+        <div class="fila"><label>PIN:</label><input type="password" name="pin" maxlength="4" pattern="\d{4}" inputmode="numeric" required></div>
+        <button class="btn">Continuar</button>
+      </form>
+      <a href="{{ url_for('index') }}" style="color:var(--texto)">Volver</a>
+    {% endif %}
+  </div>
+</div>
+</body></html>

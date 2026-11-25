@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block titulo %}Registrar entrega / baja{% endblock %}
+{% block migas %}<a href="{{ url_for('actas') }}">Actas</a> /{% endblock %}
+{% block h1 %}Registrar entrega o baja{% endblock %}
+{% block contenido %}
+<form method="post" id="fSal">{{ csrf_campo() }}
+<div class="card">
+  <div class="grid g4">
+    <div class="campo"><label>Tipo de baja *</label><select name="razon" id="razon" required>
+      {% for r in razones %}<option {% if r==razon_pre %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></div>
+    <div class="campo ent"><label>Región *</label><select name="region"><option value="">— Seleccione —</option>{% for r in regiones %}<option>{{ r }}</option>{% endfor %}</select></div>
+    <div class="campo ent"><label>Hospital / destino</label><input type="text" name="hospital"></div>
+    <div class="campo"><label>Observaciones</label><input type="text" name="observaciones"></div>
+  </div>
+  <p class="small muted" id="ayuda" style="margin-bottom:0"></p>
+</div>
+<div class="card seccion">
+  <div class="seccion-tit"><h2>Elementos</h2>
+    <div class="barra"><label class="small">Mostrar:</label>
+      <select id="fGrupo" style="width:auto"><option value="">Insumos e instrumental</option><option {% if grupo_pre=='Insumo' %}selected{% endif %}>Insumo</option><option {% if grupo_pre=='Instrumental' %}selected{% endif %}>Instrumental</option></select>
+      <button type="button" class="btn sec chico" id="add">+ Agregar elemento</button></div></div>
+  <div class="tabla-wrap"><table class="t tabla-items">
+    <thead><tr><th style="width:50px">Orden</th><th>Elemento</th><th class="num" style="width:120px">Disponible</th><th style="width:120px">Cantidad</th><th style="width:40px"></th></tr></thead>
+    <tbody id="rows"></tbody></table></div>
+</div>
+<div class="barra der seccion"><a class="btn sec" href="{{ url_for('actas') }}">Cancelar</a><button class="btn">Registrar y generar acta</button></div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+const EL = {{ elementos|tojson }}, PRE = {{ (elemento_pre or '')|tojson }};
+const rows = document.getElementById('rows'), fG = document.getElementById('fGrupo'), razon = document.getElementById('razon');
+const ENT = ['Entrega','Préstamo'];
+// Unidades utilizables según el tipo de baja: las entregas no usan unidades vencidas.
+const dispDe = e => ENT.includes(razon.value) ? e.vigente : razon.value === 'Vencido' ? e.vencido : e.stock_actual;
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function opts(sel){
+  let h = '<option value="">— Seleccione —</option>', grp = null;
+  EL.filter(e => (!fG.value || e.grupo === fG.value) || e.id == sel).forEach(e => {
+    const k = e.grupo + ' · ' + e.especialidad;
+    if (k !== grp){ if (grp) h += '</optgroup>'; h += `<optgroup label="${esc(k)}">`; grp = k; }
+    h += `<option value="${e.id}" ${e.id==sel?'selected':''} ${dispDe(e)<=0?'disabled':''}>${esc(e.descripcion)}${dispDe(e)<=0?(e.stock_actual<=0?' (agotado)':' (sin unidades para este tipo)'):''}${ENT.includes(razon.value)&&e.vencido>0?' — '+e.vencido+' vencidas no disponibles':''}</option>`;
+  });
+  return h + (grp ? '</optgroup>' : '');
+}
+function add(sel){
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td class="o"></td><td><select name="elemento_id">${opts(sel)}</select></td><td class="num disp">—</td>
+    <td><input type="number" name="cantidad" min="1"></td><td><button type="button" class="btn peligro chico">✕</button></td>`;
+  rows.appendChild(tr);
+  const s = tr.querySelector('select'), c = tr.querySelector('input');
+  const upd = () => { const e = EL.find(x => x.id == s.value); tr.querySelector('.disp').textContent = e ? dispDe(e) : '—'; c.max = e ? dispDe(e) : ''; };
+  s.onchange = upd; s._upd = upd; upd();
+  tr.querySelector('button').onclick = () => { tr.remove(); num(); };
+  num();
+}
+function num(){ [...rows.rows].forEach((r,i) => r.querySelector('.o').textContent = i+1); }
+function modo(){
+  const ent = ENT.includes(razon.value);
+  document.querySelectorAll('.ent').forEach(x => { x.style.display = ent ? '' : 'none'; });
+  document.querySelector('[name=region]').required = ent;
+  document.getElementById('ayuda').textContent = ent
+    ? 'Se generará un ACTA DE ENTREGA' + (razon.value==='Préstamo' ? ' con la casilla «Préstamo» marcada.' : '.') + ' Se entregan primero los elementos más antiguos (vencimiento más próximo). Las unidades vencidas no se entregan.'
+    : 'Se generará un ACTA POR BAJA (' + razon.value + ').' + (razon.value==='Vencido' ? ' Solo pueden darse de baja las unidades ya vencidas.' : '');
+}
+const refrescar = () => rows.querySelectorAll('select').forEach(s => { const v = s.value; s.innerHTML = opts(v); s._upd && s._upd(); });
+razon.onchange = () => { modo(); refrescar(); };
+fG.onchange = refrescar;
+document.getElementById('add').onclick = () => add();
+modo(); add(PRE); if (!PRE) { add(); add(); }
+</script>
+{% endblock %}

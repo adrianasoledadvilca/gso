@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block titulo %}Acta N° {{ acta.id }}{% endblock %}
+{% block migas %}<a href="{{ url_for('actas') }}">Actas</a> /{% endblock %}
+{% block h1 %}Acta N° {{ acta.id }} — {{ acta.razon }}{% if acta.anulada_fecha %} <span class="badge b-rojo">ANULADA</span>{% endif %}{% endblock %}
+{% block acciones %}<button class="btn sec" onclick="print()">Imprimir / PDF</button><a class="btn sec" href="?formato=xlsx">Excel</a><a class="btn" href="{{ url_for('salida_nueva') }}">+ Nueva acta</a>{% endblock %}
+{% block contenido %}
+{% if acta.anulada_fecha %}
+<div class="flash error">Acta <b>anulada</b> el {{ acta.anulada_fecha|fecha }} por <b>{{ acta.anulada_por }}</b>. Motivo: {{ acta.anulada_motivo }}.
+  Las unidades volvieron al stock y el acta no se cuenta en las estadísticas.</div>
+{% endif %}
+<div class="doc" style="position:relative">
+  {% if acta.anulada_fecha %}<div aria-hidden="true" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;
+    font-size:96px;font-weight:700;color:rgba(200,30,30,.16);transform:rotate(-24deg);letter-spacing:8px">ANULADA</div>{% endif %}
+  <h2 class="org">{{ cfg.organismo }}</h2>
+  {% if acta.tipo == 'Entrega' %}
+    <h3 class="tit">ACTA DE ENTREGA <span style="font-weight:400;font-size:12px">N° {{ acta.id }}</span></h3>
+    <p style="margin:4px 0">Por la presente, la {{ cfg.organismo }} dependiente de la {{ cfg.dependencia }}, hace entrega de los bienes que se detallan a continuación:</p>
+    <p style="display:flex;justify-content:space-between;margin:8px 0">
+      <span>Hospital: <b>{{ acta.hospital or '' }}</b></span><span>Región: <b>{{ acta.region or '' }}</b></span>
+      <span><span class="chk">{% if acta.razon=='Préstamo' %}✕{% endif %}</span>Préstamo</span></p>
+  {% else %}
+    <h3 class="tit">ACTA POR BAJA <span style="font-weight:400;font-size:12px">N° {{ acta.id }}</span></h3>
+    <p style="margin:8px 0">Marcar con una cruz el tipo de baja: &nbsp;
+      {% for r in ['Roto','Perdido','Vencido'] %}<span style="margin-right:22px"><span class="chk">{% if acta.razon==r %}✕{% endif %}</span>{{ r }}</span>{% endfor %}</p>
+  {% endif %}
+  <table>
+    <thead><tr><th style="width:60px">ORDEN</th><th>DESCRIPCION</th><th style="width:100px">CANTIDAD</th></tr></thead>
+    <tbody>
+      {% for i in items %}<tr><td style="text-align:center">{{ loop.index }}</td><td>{{ i.descripcion }} <span style="color:#777;font-size:11px">({{ i.grupo }}{% if i.envase %} · {{ i.envase }}{% endif %})</span></td><td style="text-align:center">{{ i.cantidad|num }}</td></tr>{% endfor %}
+      {% for _ in range([0, 5 - items|length]|max) %}<tr><td>&nbsp;</td><td></td><td></td></tr>{% endfor %}
+    </tbody>
+  </table>
+  {% if acta.observaciones %}<p style="margin:4px 0">Observaciones: {{ acta.observaciones }}</p>{% endif %}
+  <p style="margin:6px 0"><u>{{ 'Recibe' if acta.tipo=='Entrega' else 'Asentado por' }}:</u> {% if acta.tipo != 'Entrega' %}{{ acta.usuario }}{% endif %}</p>
+  <p style="margin:18px 0 30px">Firma, aclaración, fecha y hora: <span style="color:#777;font-size:11.5px">(registrado en sistema el {{ acta.fecha|fecha }} por {{ acta.usuario }})</span></p>
+  {% if acta.anulada_fecha %}<p style="margin:0 0 10px;color:#b00;font-size:12px">ANULADA el {{ acta.anulada_fecha|fecha }} por {{ acta.anulada_por }}. Motivo: {{ acta.anulada_motivo }}</p>{% endif %}
+</div>
+{% if not acta.anulada_fecha %}
+<div class="card seccion no-print" style="max-width:720px">
+  <h2>Anular esta acta</h2>
+  <p class="small muted" style="margin-top:0">Use esta opción solo si el acta se cargó por error. Las unidades vuelven a los mismos lotes de donde salieron
+    y el acta queda marcada como anulada (no se borra). Queda registrado quién la anuló y por qué.</p>
+  <form method="post" action="{{ url_for('acta_anular', aid=acta.id) }}" class="barra"
+        onsubmit="return confirm('¿Anular el acta N° {{ acta.id }}? Las unidades volverán al stock.')">{{ csrf_campo() }}
+    <input type="text" name="motivo" required placeholder="Motivo de la anulación (obligatorio)" style="flex:1;min-width:260px">
+    <button class="btn peligro">Anular acta</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block titulo %}Lista {{ titulo }}{% endblock %}
+{% block migas %}<a href="{{ url_for('listas') }}">Listas</a> /{% endblock %}
+{% block h1 %}ABM Lista {{ titulo }}{% endblock %}
+{% block contenido %}
+<div class="barra" style="margin-bottom:16px">{% for k, t in listas.items() %}<a class="btn {{ '' if k==nombre else 'sec' }} chico" href="{{ url_for('lista_abm', nombre=k) }}">{{ t }}</a>{% endfor %}</div>
+<div class="grid" style="grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)">
+  <div class="tabla-wrap"><table class="t">
+    <thead><tr><th style="width:60px">Orden</th><th>Valor</th><th style="width:330px"></th></tr></thead>
+    <tbody>{% for f in filas %}<tr>
+      <td>{{ loop.index }}</td>
+      <td>{% if f.valor in protegidos %}{{ f.valor }} <span class="badge b-gris" title="Usado internamente">sistema</span>
+        {% elif fija %}{{ f.valor }} <span class="badge b-amarillo" title="El sistema no sabe usar este valor">no utilizable</span>
+        {% else %}<form method="post" class="barra" style="flex-wrap:nowrap">{{ csrf_campo() }}<input type="hidden" name="id" value="{{ f.id }}"><input type="hidden" name="accion" value="modificar"><input type="text" name="valor" value="{{ f.valor }}" required><button class="btn sec chico">Guardar</button></form>{% endif %}</td>
+      <td style="white-space:nowrap;text-align:right">
+        <form method="post" style="display:inline">{{ csrf_campo() }}<input type="hidden" name="id" value="{{ f.id }}"><button class="btn sec chico" name="accion" value="subir" {% if loop.first %}disabled{% endif %} title="Subir">↑</button><button class="btn sec chico" name="accion" value="bajar" {% if loop.last %}disabled{% endif %} title="Bajar">↓</button></form>
+        {% if f.valor not in protegidos %}<form method="post" style="display:inline" onsubmit="return confirm('¿Eliminar «{{ f.valor }}»?')">{{ csrf_campo() }}<input type="hidden" name="id" value="{{ f.id }}"><button class="btn peligro chico" name="accion" value="baja">Baja</button></form>{% endif %}
+      </td></tr>{% endfor %}</tbody></table></div>
+  {% if fija %}
+  <div class="card" style="align-self:start">
+    <h2>Lista fija</h2>
+    <p class="small muted" style="margin:0">El sistema solo maneja estos valores{% if nombre=='grupo' %} (cada grupo tiene su propio módulo){% else %} (cada tipo tiene su acta, sus reglas y sus estadísticas){% endif %}, por eso no se pueden agregar ni renombrar. Sí puede cambiar el orden en que aparecen.
+    {% if filas|rejectattr('valor', 'in', protegidos)|list %}<br><br>Los valores marcados «no utilizable» se agregaron en una versión anterior; puede darlos de baja si no se usaron.{% endif %}</p>
+  </div>
+  {% else %}
+  <form method="post" class="card form" style="align-self:start">{{ csrf_campo() }}
+    <h2>Alta de valor</h2>
+    <input type="hidden" name="accion" value="alta">
+    <div class="campo"><label>Nuevo valor para «{{ titulo }}»</label><input type="text" name="valor" required></div>
+    <button class="btn">Agregar</button>
+    <p class="small muted" style="margin:0">Al modificar un valor, se actualiza en todos los elementos que lo usan.</p>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

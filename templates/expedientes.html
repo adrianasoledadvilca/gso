@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titulo %}Expedientes{% endblock %}
+{% block h1 %}Expedientes{% endblock %}
+{% block acciones %}<a class="btn" href="{{ url_for('expediente_form') }}">+ Nuevo expediente</a>{% endblock %}
+{% block contenido %}
+<div class="links">
+  <a class="link-card" href="{{ url_for('expedientes_abm') }}"><b>ABM de Expedientes</b><span>Alta, baja y modificación de expedientes de compra.</span></a>
+  <a class="link-card" href="{{ url_for('expedientes_consultar') }}"><b>Consultar</b><span>Por año, número o usuario que realizó el ABM.</span></a>
+  <a class="link-card" href="{{ url_for('expedientes_consultar') }}#mostrar"><b>Mostrar documentos</b><span>Pedido de provisión y Especificaciones técnicas desde el expediente asociado.</span></a>
+</div>
+<div class="seccion">
+  <div class="seccion-tit"><h2>Últimos 5 expedientes ingresados</h2></div>
+  {% include "_tabla_expedientes.html" with context %}
+</div>
+{% endblock %}

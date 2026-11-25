@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block titulo %}Especificaciones técnicas {{ exp.nro_expediente }}{% endblock %}
+{% block migas %}<a href="{{ url_for('expedientes') }}">Expedientes</a> / <a href="{{ url_for('expediente_detalle', eid=exp.id) }}">{{ exp.nro_expediente }}</a> /{% endblock %}
+{% block h1 %}Especificaciones técnicas{% endblock %}
+{% block acciones %}<button class="btn sec" onclick="print()">Imprimir / PDF</button><a class="btn sec" href="?formato=xlsx">Excel</a>{% endblock %}
+{% block contenido %}
+<div class="doc">
+  <h2 class="org">{{ cfg.organismo }}</h2>
+  <h3 class="tit">ESPECIFICACIONES TECNICAS</h3>
+  <p style="margin:4px 0">Expediente: <b>{{ exp.nro_expediente }}</b> &nbsp;·&nbsp; Grupo: {{ exp.grupo }}</p>
+  <table class="naranja">
+    <thead><tr><th>Renglón</th><th>Descripción</th><th>Unidad</th><th>Cantidad</th><th style="width:42%">Especificaciones técnicas</th></tr></thead>
+    <tbody>{% for i in items %}<tr><td style="text-align:center">{{ i.nro or loop.index }}{{ i.letra }}</td><td>{{ i.descripcion }}<div style="font-size:11px;color:#666">{{ i.especialidad }}</div></td><td>{{ i.unidad }}</td><td style="text-align:right">{{ i.cantidad|num }}</td><td>{{ i.especificaciones or '—' }}</td></tr>{% endfor %}</tbody>
+  </table>
+  <div class="firmas"><div>Firma responsable</div><div>Vº Bº Director</div></div>
+</div>
+{% endblock %}

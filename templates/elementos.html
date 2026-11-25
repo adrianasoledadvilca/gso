@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block titulo %}{{ 'Insumos' if grupo=='Insumo' else 'Instrumental' }}{% endblock %}
+{% block h1 %}{{ 'Insumos' if grupo=='Insumo' else 'Instrumental' }}{% endblock %}
+{% block acciones %}
+  <a class="btn sec" href="{{ url_for('salida_nueva', tipo=tipo) }}">Registrar entrega / baja</a>
+  <a class="btn" href="{{ url_for('elemento_form', tipo=tipo) }}">+ Nuevo {{ 'insumo' if grupo=='Insumo' else 'instrumento' }}</a>
+{% endblock %}
+{% block contenido %}
+<div class="grid g4 hero-ancho">
+  <div class="card kpi hero"><div class="etq">Valor en stock</div><div class="val" style="font-size:26px">{{ resumen.valor|pesos }}</div><div class="sub">{{ resumen.unidades|num }} unidades</div></div>
+  <div class="card kpi"><div class="etq">Elementos registrados</div><div class="val">{{ resumen.total }}</div>
+    {% if true %}<div class="sub"><a href="{{ url_for('elementos_consultar', tipo=tipo, vence='si') }}">{{ resumen.con_venc }} con vencimiento</a> · <a href="{{ url_for('elementos_consultar', tipo=tipo, vence='no') }}">{{ resumen.sin_venc }} sin vencimiento</a></div>{% endif %}</div>
+  <a class="card kpi" style="text-decoration:none" href="{{ url_for('elementos_consultar', tipo=tipo, estado='critico') }}"><div class="etq">Stock crítico</div><div class="val" style="color:var(--amarillo)">{{ resumen.criticos }}</div><div class="sub">Ver todos →</div></a>
+  <a class="card kpi" style="text-decoration:none" href="{{ url_for('elementos_consultar', tipo=tipo, estado='agotado') }}"><div class="etq">Agotados</div><div class="val" style="color:var(--rojo)">{{ resumen.agotados }}</div><div class="sub">Ver todos →</div></a>
+</div>
+
+{% if true %}
+<div class="grid g2 seccion">
+  <a class="cat-card" href="{{ url_for('elementos_consultar', tipo=tipo, vence='si') }}">
+    <span class="cat-ico si grande">⏱</span>
+    <div><b>{{ 'Insumos' if grupo=='Insumo' else 'Instrumental' }} con vencimiento</b><span>{{ resumen.con_venc }} elementos · {{ resumen.valor_con|pesos }} en stock</span>
+      <small>Productos estériles, químicos o con vida útil indicada por el fabricante. Llevan fecha por lote, salen primero los que vencen antes y generan alertas.</small></div></a>
+  <a class="cat-card" href="{{ url_for('elementos_consultar', tipo=tipo, vence='no') }}">
+    <span class="cat-ico no grande">∞</span>
+    <div><b>{{ 'Insumos' if grupo=='Insumo' else 'Instrumental' }} sin vencimiento</b><span>{{ resumen.sin_venc }} elementos · {{ resumen.valor_sin|pesos }} en stock</span>
+      <small>Sin fecha de caducidad del fabricante (instrumental reutilizable, fresas no estériles, cuñas, matrices…). Salen por orden de ingreso.</small></div></a>
+</div>
+{% endif %}
+<div class="links seccion">
+  <a class="link-card" href="{{ url_for('elementos_abm', tipo=tipo) }}"><b>ABM de {{ 'Insumos' if grupo=='Insumo' else 'Instrumental' }}</b><span>Alta, baja y modificación de elementos.</span></a>
+  <a class="link-card" href="{{ url_for('elementos_consultar', tipo=tipo) }}"><b>Consultar</b><span>Por nombre, especialidad, vencimiento, estado crítico o agotado.</span></a>
+  <a class="link-card" href="{{ url_for('actas') }}"><b>Actas</b><span>Historial de entregas, préstamos y bajas.</span></a>
+  <a class="link-card" href="{{ url_for('ajustes', grupo=grupo) }}"><b>Ajustes de inventario</b><span>Diferencias con el conteo físico.</span></a>
+</div>
+
+<div class="seccion grid g2 arriba">
+  <div class="card"><h2>En estado crítico</h2><ul class="lista-simple small">
+    {% for f in criticos %}<li><a href="{{ url_for('elemento_form', tipo=tipo, elid=f.id) }}">{{ f.descripcion }}</a><span class="badge b-amarillo">{{ f.stock_actual }}/{{ f.stock_minimo }}</span></li>{% else %}<li class="muted">Ninguno.</li>{% endfor %}</ul></div>
+  <div class="card"><h2>Agotados</h2><ul class="lista-simple small">
+    {% for f in agotados %}<li><a href="{{ url_for('elemento_form', tipo=tipo, elid=f.id) }}">{{ f.descripcion }}</a><span class="badge b-rojo">0</span></li>{% else %}<li class="muted">Ninguno.</li>{% endfor %}</ul></div>
+  {% if true %}
+  <div class="card"><h2>Próximos a vencer</h2><ul class="lista-simple small">
+    {% for f in proximos %}<li><a href="{{ url_for('elemento_form', tipo=tipo, elid=f.id) }}">{{ f.descripcion }}</a><span class="badge b-amarillo">{{ f.prox_venc|fecha }}</span></li>{% else %}<li class="muted">Ninguno.</li>{% endfor %}</ul></div>
+  <div class="card"><h2>Vencidos</h2><ul class="lista-simple small">
+    {% for f in vencidos %}<li><a href="{{ url_for('elemento_form', tipo=tipo, elid=f.id) }}">{{ f.descripcion }}</a><a class="badge b-rojo" href="{{ url_for('salida_nueva', tipo=tipo, razon='Vencido', elemento=f.id) }}" title="Dar de baja por vencimiento">{{ f.cant_vencida }} u. · baja</a></li>{% else %}<li class="muted">Ninguno.</li>{% endfor %}</ul></div>
+  {% endif %}
+</div>
+{% endblock %}

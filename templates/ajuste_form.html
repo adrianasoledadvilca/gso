@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% set nombre_mod = 'Insumos' if grupo=='Insumo' else 'Instrumental' %}
+{% block titulo %}Ajuste de inventario{% endblock %}
+{% block migas %}<a href="{{ url_for('modulo_elementos', tipo=tipo) }}">{{ nombre_mod }}</a> / <a href="{{ url_for('elemento_form', tipo=tipo, elid=el.id) }}">{{ el.descripcion }}</a> /{% endblock %}
+{% block h1 %}Ajuste de inventario{% endblock %}
+{% block acciones %}<a class="btn sec" href="{{ url_for('ajustes') }}">Ver todos los ajustes</a>{% endblock %}
+{% block contenido %}
+<div class="card" style="margin-bottom:20px">
+  <div class="campo"><label>Elemento a ajustar</label>
+    <div class="buscador" id="bCambio"><input type="search" placeholder="Buscar otro insumo o instrumental…" autocomplete="off" aria-label="Cambiar de elemento"></div></div>
+</div>
+<div class="grid" style="grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)">
+<form method="post" class="card form" id="fAj">{{ csrf_campo() }}
+  <h2>{{ el.descripcion }}</h2>
+  <p class="small muted" style="margin-top:-6px">Stock en el sistema: <b>{{ el.stock_actual|num }}</b> unidades.
+    Use el ajuste cuando el conteo físico no coincide con el sistema. No se registra como compra ni como entrega, y no genera acta.</p>
+  <div class="campo"><label>Tipo de ajuste *</label>
+    <div class="barra">
+      <label><input type="radio" name="sentido" value="Faltante" required checked> <b>Faltante</b> — hay menos de lo que figura (se descuenta)</label>
+    </div>
+    <div class="barra">
+      <label><input type="radio" name="sentido" value="Sobrante" required> <b>Sobrante</b> — hay más de lo que figura (se suma)</label>
+    </div>
+  </div>
+  <div class="grid g2">
+    <div class="campo"><label>Cantidad *</label><input type="number" name="cantidad" min="1" required></div>
+    <div class="campo solo-falt"><label>Descontar de</label>
+      <select name="lote_id">
+        <option value="">Los lotes más antiguos primero</option>
+        {% for l in lotes %}<option value="{{ l.id }}">Lote {{ l.nro_expediente or 'manual' }} · ingreso {{ l.fecha_ingreso|fecha }}{% if el.lleva_vencimiento %} · vence {{ l.fecha_vencimiento|fecha }}{% endif %} · {{ l.cantidad_actual }} u.</option>{% endfor %}
+      </select></div>
+    {% if el.lleva_vencimiento %}<div class="campo solo-sobr" style="display:none"><label>Vencimiento de las unidades encontradas</label><input type="date" name="vencimiento"></div>{% endif %}
+  </div>
+  <div class="campo"><label>Motivo *</label><input type="text" name="motivo" required placeholder="Ej.: diferencia en inventario anual del 10/11/2026"></div>
+  <div class="barra der"><a class="btn sec" href="{{ url_for('elemento_form', tipo=tipo, elid=el.id) }}">Cancelar</a><button class="btn">Registrar ajuste</button></div>
+</form>
+<div class="card" style="align-self:start">
+  <h2>Cuándo usar cada opción</h2>
+  <ul class="small" style="padding-left:18px;margin:0">
+    <li style="margin-bottom:8px"><b>Faltante:</b> unidades que no aparecen en el depósito y no se sabe por qué. Si se sabe (se rompió, se perdió, se venció), use <a href="{{ url_for('salida_nueva', tipo=tipo, elemento=el.id) }}">Registrar entrega / baja</a>, que genera el acta.</li>
+    <li style="margin-bottom:8px"><b>Sobrante:</b> unidades que están en el depósito pero no figuraban. Si vienen de una compra, cárguelas desde el expediente.</li>
+    <li><b>Para corregir una salida cargada por error</b>, no use un ajuste: anule el acta.</li>
+  </ul>
+</div>
+</div>
+{% endblock %}
+{% block scripts %}<script>
+const fAj = document.getElementById('fAj');
+const modo = () => { const s = fAj.querySelector('[name=sentido]:checked').value;
+  fAj.querySelectorAll('.solo-falt').forEach(x => x.style.display = s === 'Faltante' ? '' : 'none');
+  fAj.querySelectorAll('.solo-sobr').forEach(x => x.style.display = s === 'Sobrante' ? '' : 'none'); };
+fAj.querySelectorAll('[name=sentido]').forEach(r => r.addEventListener('change', modo)); modo();
+GSO.buscador(document.getElementById('bCambio'), {{ elementos|tojson }},
+  e => location.href = (e.grupo === 'Insumo' ? '/insumos/' : '/instrumental/') + e.id + '/ajuste', {{ el.id }});
+</script>{% endblock %}

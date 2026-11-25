@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block titulo %}Administrador{% endblock %}
+{% block h1 %}Administrador{% endblock %}
+{% block contenido %}
+<div class="links">
+  <a class="link-card" href="{{ url_for('usuarios') }}"><b>ABM Usuarios</b><span>{{ n_usuarios }} usuario(s) registrados.</span></a>
+  <a class="link-card" href="{{ url_for('configuracion') }}"><b>Configuración</b><span>Logo, nombre del sistema, alertas de vencimiento y stock mínimo.</span></a>
+  <a class="link-card" href="{{ url_for('temas') }}"><b>Temas</b><span>Combinaciones de color de la interfaz.</span></a>
+  <a class="link-card" href="{{ url_for('respaldos') }}"><b>Respaldo</b><span>Descargar o restaurar una copia de la base de datos.</span></a>
+</div>
+{% endblock %}

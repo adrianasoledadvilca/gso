@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block titulo %}Respaldo{% endblock %}
+{% block migas %}<a href="{{ url_for('admin') }}">Administrador</a> /{% endblock %}
+{% block h1 %}Respaldo de la base de datos{% endblock %}
+{% block contenido %}
+<div class="grid g2">
+  <div class="card">
+    <h2>Descargar respaldo</h2>
+    <p class="small muted">Descarga una copia completa de la información (expedientes, stock, actas, usuarios y configuración). Puede hacerse mientras otras personas usan el sistema. Guárdela fuera de esta computadora (pendrive, unidad de red).</p>
+    <a class="btn" href="{{ url_for('respaldo') }}">Descargar respaldo</a>
+  </div>
+  <form method="post" enctype="multipart/form-data" class="card form" onsubmit="return confirm('Se reemplazará TODA la información actual por la del respaldo. ¿Continuar?')">{{ csrf_campo() }}
+    <h2>Restaurar un respaldo</h2>
+    <p class="small muted" style="margin-top:0">Reemplaza toda la información actual por la del archivo. Antes de hacerlo, el sistema guarda automáticamente una copia de la base actual (abajo). Después deberá ingresar de nuevo, con los usuarios y contraseñas del respaldo.</p>
+    <div class="campo"><label>Archivo de respaldo (.db)</label><input type="file" name="archivo" accept=".db" required></div>
+    <div class="barra"><input type="text" name="confirmar" placeholder="Escriba RESTAURAR" required style="max-width:200px"><button class="btn peligro">Restaurar</button></div>
+  </form>
+</div>
+<div class="card seccion">
+  <h2>Copias automáticas</h2>
+  <p class="small muted" style="margin-top:0">El sistema guarda una copia de la base antes de cada restauración y antes de «Reiniciar base». Se conservan en la carpeta <code>datos/respaldos</code>.</p>
+  <div class="tabla-wrap"><table class="t">
+    <thead><tr><th>Archivo</th><th>Fecha</th><th class="num">Tamaño</th><th></th></tr></thead>
+    <tbody>{% for c in copias %}<tr><td>{{ c.nombre }}</td><td>{{ c.fecha|fecha }}</td><td class="num">{{ c.kb|num }} KB</td>
+      <td style="text-align:right"><a class="btn sec chico" href="{{ url_for('respaldo_automatico', nombre=c.nombre) }}">Descargar</a></td></tr>
+    {% else %}<tr><td colspan="4" class="vacio">Todavía no hay copias automáticas.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% endblock %}

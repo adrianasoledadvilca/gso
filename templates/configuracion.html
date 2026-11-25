@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block titulo %}Configuración{% endblock %}
+{% block migas %}<a href="{{ url_for('admin') }}">Administrador</a> /{% endblock %}
+{% block h1 %}Configuración{% endblock %}
+{% block acciones %}<a class="btn sec" href="{{ url_for('temas') }}">Temas</a>{% endblock %}
+{% block contenido %}
+<form method="post" enctype="multipart/form-data" class="grid g2">{{ csrf_campo() }}
+  <div class="card form">
+    <h2>Identidad</h2>
+    <div class="campo"><label>Nombre del sistema</label><input type="text" name="nombre_sistema" value="{{ cfg.nombre_sistema }}"></div>
+    <div class="campo"><label>Organismo (encabezado de actas y pedidos)</label><input type="text" name="organismo" value="{{ cfg.organismo }}"></div>
+    <div class="campo"><label>Dependencia (texto del acta de entrega)</label><input type="text" name="dependencia" value="{{ cfg.dependencia }}"></div>
+    <div class="campo"><label>Logo / imagen</label>
+      <div class="barra"><img src="{{ url_for('static', filename=cfg.logo) }}" style="max-height:60px;border:1px solid var(--linea);border-radius:6px;padding:4px;background:#fff">
+        <input type="file" name="logo" accept="image/*" style="flex:1"></div>
+      {% if cfg.logo != 'img/logo.png' %}<label class="small" style="margin-top:6px"><input type="checkbox" name="restaurar_logo" value="1"> Restaurar logo original</label>{% endif %}
+    </div>
+  </div>
+  <div class="card form">
+    <h2>Alertas</h2>
+    <div class="campo"><label>Días de anticipación para «próximo a vencer»</label><input type="number" min="1" name="dias_alerta_vencimiento" value="{{ cfg.dias_alerta_vencimiento }}"></div>
+    <div class="campo"><label>Stock mínimo por defecto para elementos nuevos</label><input type="number" min="0" name="stock_minimo_defecto" value="{{ cfg.stock_minimo_defecto }}"></div>
+    <label class="small"><input type="checkbox" name="aplicar_minimo" value="1"> Aplicar este stock mínimo a <b>todos</b> los elementos existentes</label>
+    <p class="small muted" style="margin:0">Cada elemento también tiene su propio stock mínimo editable. Amarillo = stock crítico (igual o menor al mínimo); rojo = agotado.</p>
+    <div class="barra der"><button class="btn">Guardar configuración</button></div>
+  </div>
+</form>
+<div class="card seccion">
+  <h2>Datos</h2>
+  <div class="grid g2">
+    <form method="post" action="{{ url_for('admin_datos') }}" onsubmit="return confirm('Se agregarán expedientes, elementos y movimientos ficticios. ¿Continuar?')">{{ csrf_campo() }}
+      <input type="hidden" name="accion" value="demo">
+      <p class="small muted">Carga expedientes, insumos, instrumental y movimientos de ejemplo para probar las estadísticas. Úselo solo en una base de prueba.</p>
+      <button class="btn sec">Cargar datos de demostración</button>
+    </form>
+    <form method="post" action="{{ url_for('admin_datos') }}">{{ csrf_campo() }}
+      <input type="hidden" name="accion" value="reiniciar">
+      <p class="small muted">Borra toda la información y deja solo el usuario Admin / Admin. Antes de borrar, el sistema guarda una copia automática (ver <a href="{{ url_for('respaldos') }}">Respaldo</a>).</p>
+      <div class="barra"><input type="text" name="confirmar" placeholder="Escriba REINICIAR" style="max-width:200px"><button class="btn peligro">Reiniciar base</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

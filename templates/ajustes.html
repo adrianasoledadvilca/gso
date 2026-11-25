@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block titulo %}Ajustes de inventario{% endblock %}
+{% block h1 %}Ajustes de inventario{% endblock %}
+{% block acciones %}<button class="btn sec" onclick="print()">Imprimir / PDF</button><a class="btn sec" href="?formato=xlsx&grupo={{ grupo }}">Excel</a>{% endblock %}
+{% block contenido %}
+<div class="card no-print" style="margin-bottom:22px">
+  <div class="card-tit"><h2>Registrar un ajuste</h2><span class="muted small">Diferencias entre el conteo físico y el sistema</span></div>
+  <div class="buscador" id="bAjuste">
+    <input type="search" placeholder="Buscar insumo o instrumental… (clic para ver todos)" autocomplete="off" aria-label="Buscar elemento para ajustar">
+  </div>
+  <p class="small muted" style="margin:8px 0 0">Elija un elemento de la lista para cargar el faltante o sobrante. Puede filtrar escribiendo parte del nombre, la especialidad o el grupo.</p>
+</div>
+<h2 style="margin-bottom:12px">Historial de ajustes</h2>
+<form class="filtros no-print" method="get">
+  <div class="campo"><label>Grupo</label><select name="grupo" onchange="this.form.submit()"><option value="">Todos</option>{% for g_ in ['Insumo','Instrumental'] %}<option {% if g_==grupo %}selected{% endif %}>{{ g_ }}</option>{% endfor %}</select></div>
+  <div class="campo ancho"><label>Buscar</label><input type="search" data-filtrar="#tAj" placeholder="Elemento, motivo, usuario…"></div>
+</form>
+<div id="tAj"><div class="tabla-wrap"><table class="t" data-ordenable>
+  <thead><tr><th class="ord">Fecha</th><th class="ord">Elemento</th><th class="ord">Tipo</th><th class="num ord">Cantidad</th><th class="num ord">Valor</th><th class="ord">Motivo</th><th class="ord">Usuario</th></tr></thead>
+  <tbody>{% for m in filas %}<tr>
+    <td data-v="{{ m.fecha }}">{{ m.fecha|fecha }}</td>
+    <td><a href="{{ url_for('elemento_form', tipo='insumos' if m.grupo=='Insumo' else 'instrumental', elid=m.elemento_id) }}">{{ m.descripcion }}</a> <span class="muted small">{{ m.grupo }}</span></td>
+    <td><span class="badge {{ 'b-verde' if m.tipo=='Alta' else 'b-rojo' }}">{{ 'Sobrante' if m.tipo=='Alta' else 'Faltante' }}</span></td>
+    <td class="num">{{ ('+' if m.tipo=='Alta' else '−') }}{{ m.cantidad|num }}</td>
+    <td class="num" data-v="{{ m.cantidad*m.precio_unitario }}">{{ (m.cantidad*m.precio_unitario)|pesos }}</td>
+    <td>{{ m.observaciones or '' }}</td><td>{{ m.usuario }}</td></tr>
+  {% else %}<tr><td colspan="7" class="vacio">No hay ajustes registrados.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endblock %}
+{% block scripts %}<script>
+GSO.buscador(document.getElementById('bAjuste'), {{ elementos|tojson }},
+  e => location.href = (e.grupo === 'Insumo' ? '/insumos/' : '/instrumental/') + e.id + '/ajuste');
+</script>{% endblock %}

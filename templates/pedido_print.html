@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block titulo %}Pedido de provisión {{ exp.nro_expediente }}{% endblock %}
+{% block migas %}<a href="{{ url_for('expedientes') }}">Expedientes</a> / <a href="{{ url_for('expediente_detalle', eid=exp.id) }}">{{ exp.nro_expediente }}</a> /{% endblock %}
+{% block h1 %}Pedido de provisión{% endblock %}
+{% block acciones %}<button class="btn sec" onclick="print()">Imprimir / PDF</button><a class="btn sec" href="?formato=xlsx">Excel</a>{% endblock %}
+{% block contenido %}
+<div class="doc">
+  <h2 class="org">{{ cfg.organismo }}</h2>
+  <h3 class="tit">PEDIDO DE PROVISION</h3>
+  <p style="margin:4px 0">Expedientes: <b>{{ exp.nro_expediente }}</b></p>
+  <p style="margin:4px 0">Artículos solicitados por: <span class="caja" style="min-width:360px">{{ exp.solicitado_por }}</span></p>
+  <p style="margin:4px 0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+    <span>Para ser utilizados en: <span class="caja">{{ exp.utilizado_en }}</span></span>
+    <span>Para entregar en/a: <span class="caja">{{ exp.entregar_en }}</span></span></p>
+  <p style="margin:4px 0">Monto estimado: $ <span class="caja" style="min-width:120px">{{ (exp.valor_total|pesos)[2:] }}</span></p>
+  <table class="naranja">
+    <thead><tr><th>Orden</th><th>Nro</th><th>Letra</th><th>Unidad</th><th>Cantidad</th><th style="width:40%">Descripción</th><th>$ Unitario</th><th>Subtotal</th></tr></thead>
+    <tbody>
+    {% for i in items %}<tr><td style="text-align:center">{{ loop.index }}</td><td style="text-align:center">{{ i.nro }}</td><td style="text-align:center">{{ i.letra }}</td><td>{{ i.unidad }}</td><td style="text-align:right">{{ i.cantidad|num }}</td><td>{{ i.descripcion }}</td><td style="text-align:right">{{ i.precio_unitario|pesos }}</td><td style="text-align:right">{{ (i.cantidad*i.precio_unitario)|pesos }}</td></tr>{% endfor %}
+    {% for _ in range([0, 9 - items|length]|max) %}<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>{% endfor %}
+    </tbody>
+  </table>
+  <div style="text-align:right;font-weight:600">Total: $ <span style="display:inline-block;border:1px solid #444;min-width:120px;padding:3px 7px">{{ (exp.valor_total|pesos)[2:] }}</span></div>
+  <div class="firmas"><div>Firma solicitante</div><div>Vº Bº Director</div></div>
+</div>
+{% endblock %}

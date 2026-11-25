@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block titulo %}Consultar expedientes{% endblock %}
+{% block migas %}<a href="{{ url_for('expedientes') }}">Expedientes</a> /{% endblock %}
+{% block h1 %}Consultar expedientes{% endblock %}
+{% block contenido %}
+<form class="filtros card plana" method="get">
+  <div class="campo"><label>Año</label><select name="anio"><option value="">Todos</option>{% for y in anios %}<option {% if a.anio==y|string %}selected{% endif %}>{{ y }}</option>{% endfor %}</select></div>
+  <div class="campo"><label>Número</label><input type="text" name="numero" value="{{ a.numero }}" placeholder="12345678 o 2026-12345678"></div>
+  <div class="campo"><label>Usuario (ABM)</label><select name="usuario"><option value="">Todos</option>{% for u in usuarios %}<option {% if a.usuario==u %}selected{% endif %}>{{ u }}</option>{% endfor %}</select></div>
+  <button class="btn">Consultar</button>
+  {% if buscado %}<a class="btn sec" href="{{ url_for('expedientes_consultar') }}">Limpiar</a>{% endif %}
+</form>
+<div id="mostrar" style="margin-top:16px">
+{% if buscado %}
+  <p class="muted small">{{ filas|length }} expediente(s) encontrado(s). Abra uno para ver sus elementos, cantidades, saldo sin consumir y total; o sus documentos.</p>
+  {% include "_tabla_expedientes.html" with context %}
+{% else %}
+  <div class="card vacio">Elija un criterio y presione <b>Consultar</b>. Si indica año y número exactos, se abrirá directamente el expediente.</div>
+{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block titulo %}Actas{% endblock %}
+{% block h1 %}Actas de entrega y baja{% endblock %}
+{% block acciones %}<button class="btn sec" onclick="print()">Imprimir / PDF</button><a class="btn sec" href="?formato=xlsx&razon={{ razon }}">Excel</a><a class="btn" href="{{ url_for('salida_nueva') }}">+ Nueva acta</a>{% endblock %}
+{% block contenido %}
+<form class="filtros no-print" method="get">
+  <div class="campo"><label>Tipo de baja</label><select name="razon" onchange="this.form.submit()"><option value="">Todas</option>{% for r in razones %}<option {% if r==razon %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></div>
+  <div class="campo ancho"><label>Buscar</label><input type="search" data-filtrar="#tActas" placeholder="Región, hospital, usuario…"></div>
+</form>
+<div id="tActas"><div class="tabla-wrap"><table class="t" data-ordenable>
+  <thead><tr><th class="ord">N°</th><th class="ord">Fecha</th><th class="ord">Razón</th><th class="ord">Región</th><th class="ord">Hospital</th><th class="num ord">Ítems</th><th class="num ord">Unidades</th><th class="num ord">Valor</th><th class="ord">Usuario</th></tr></thead>
+  <tbody>{% for a in filas %}<tr>
+    <td><a href="{{ url_for('acta_ver', aid=a.id) }}"><b>{{ a.id }}</b></a></td><td data-v="{{ a.fecha }}">{{ a.fecha|fecha }}</td>
+    <td><span class="badge {{ 'b-azul' if a.tipo=='Entrega' else 'b-rojo' }}">{{ a.razon }}</span>{% if a.anulada_fecha %} <span class="badge b-gris" title="Anulada por {{ a.anulada_por }}: {{ a.anulada_motivo }}">Anulada</span>{% endif %}</td>
+    <td>{{ a.region or '—' }}</td><td>{{ a.hospital or '—' }}</td><td class="num">{{ a.n }}</td><td class="num">{{ a.unidades|num }}</td><td class="num" data-v="{{ a.valor }}">{% if a.anulada_fecha %}<s class="muted">{{ a.valor|pesos }}</s>{% else %}{{ a.valor|pesos }}{% endif %}</td><td>{{ a.usuario }}</td></tr>
+  {% else %}<tr><td colspan="9" class="vacio">No hay actas registradas.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endblock %}
